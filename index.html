@@ -1,0 +1,3129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Natsumoto MV Studio</title>
+
+    <!-- PWA Meta Tags for iPhone "Add to Home Screen" -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Natsumoto MV Studio">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0d0f17">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Inter + 8 MV-Ready Japanese Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:wght@500;600;700;800&family=Kaisei+Decol:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+JP:wght@500;700;900&family=RocknRoll+One&family=Shippori+Mincho:wght@500;700;800&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --accent: #a855f7;
+            --accent-soft: rgba(168, 85, 247, 0.18);
+        }
+
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            background-color: #0d0f17;
+            color: #f4f6fb;
+            font-family: "Inter", "Noto Sans JP", -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0d0f17; }
+        ::-webkit-scrollbar-thumb { background: #2d3348; border-radius: 99px; }
+
+        .safe-top { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+        .safe-bottom { padding-bottom: max(1.75rem, env(safe-area-inset-bottom)); }
+
+        /* Active states controlled by JS */
+        .main-tab-btn.active {
+            color: #ffffff;
+            border-bottom-color: var(--accent);
+            background-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .style-subtab-btn.active {
+            background-color: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        .choice-btn.active {
+            background-color: var(--accent-soft);
+            border-color: var(--accent);
+            color: #ffffff;
+        }
+
+        .speed-btn.active {
+            background-color: var(--accent);
+            color: #ffffff;
+        }
+
+        .swatch-btn.active {
+            border-color: #ffffff;
+            transform: scale(1.12);
+            box-shadow: 0 0 0 2px #141722, 0 0 0 4px var(--accent);
+        }
+
+        .accent-bg {
+            background-color: var(--accent);
+        }
+
+        .accent-border {
+            border-color: var(--accent);
+        }
+
+        .accent-text {
+            color: var(--accent);
+        }
+
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: #272c40;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+        }
+
+        .visually-hidden-file {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+    </style>
+</head>
+<body class="select-none">
+    <!-- Plain HTMLAudioElement (NEVER attached to AudioContext.createMediaElementSource for iOS sound reliability) -->
+    <audio id="audioPlayer" preload="auto" playsinline></audio>
+
+    <div class="flex flex-col w-full h-full max-w-5xl mx-auto bg-[#0d0f17]">
+
+        <!-- ===============================================================
+             1. TOP STICKY HEADER
+             =============================================================== -->
+        <header class="shrink-0 flex items-center justify-between gap-2 px-3 py-2 safe-top bg-[#141722] border-b border-[#272c40] z-20">
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-7 h-7 rounded-lg accent-bg flex items-center justify-center text-xs font-extrabold text-white shrink-0 shadow">
+                    N
+                </div>
+                <h1 class="text-sm sm:text-base font-extrabold tracking-tight text-white truncate">
+                    Natsumoto MV Studio
+                </h1>
+            </div>
+            <button id="btnExportMp4" type="button" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg accent-bg text-white text-xs font-bold shadow hover:brightness-110 active:scale-95 transition disabled:opacity-45">
+                🎬 フル尺MP4書き出し
+            </button>
+        </header>
+
+        <!-- ===============================================================
+             2. STICKY PREVIEW + EXPORT PROGRESS + WAVEFORM + TRANSPORT
+             =============================================================== -->
+        <section class="shrink-0 flex flex-col bg-[#090b11] border-b border-[#272c40]">
+            <!-- Canvas Preview Container -->
+            <div class="relative w-full h-[25dvh] min-h-[148px] max-h-[300px] flex items-center justify-center px-3 py-2 overflow-hidden">
+                <div class="absolute top-2.5 left-3.5 flex items-center gap-1.5 pointer-events-none z-10">
+                    <span id="badgeAspect" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0d0f17]/85 border border-[#3c435e] text-[#b9c0d6]">
+                        16:9 (1280×720)
+                    </span>
+                    <span id="badgeLoop" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/90 border border-red-300 text-white">
+                        行ループ中
+                    </span>
+                </div>
+                <canvas id="mvCanvas" width="1280" height="720" class="block max-w-full max-h-full w-auto h-auto rounded-lg bg-[#121520] shadow-xl ring-1 ring-[#272c40]"></canvas>
+            </div>
+
+            <!-- Offline Export Progress Bar (shown only while exporting) -->
+            <div id="exportProgressWrap" class="hidden flex-col gap-1.5 px-3 py-2 bg-[#141722] border-t border-[#272c40]">
+                <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold">
+                    <div class="flex flex-wrap items-center gap-2 text-white">
+                        <span id="expStatusLabel">MP4書き出し中...</span>
+                        <span id="expPct" class="font-mono text-purple-300">0%</span>
+                        <span id="expFrames" class="font-mono text-[#b9c0d6]">0 / 0</span>
+                        <span id="expElapsed" class="font-mono text-[#b9c0d6]">経過 00:00</span>
+                        <span id="expEta" class="font-mono text-amber-300">残り --:--</span>
+                    </div>
+                    <button id="btnCancelExport" type="button" class="px-2.5 py-1 rounded-md bg-red-500/20 border border-red-500/50 text-red-200 text-[11px] font-bold active:scale-95">
+                        キャンセル
+                    </button>
+                </div>
+                <div class="w-full h-2 rounded-full bg-[#0d0f17] overflow-hidden">
+                    <div id="expBarFill" class="h-full w-0 accent-bg rounded-full transition-all duration-75"></div>
+                </div>
+            </div>
+
+            <!-- Waveform Seek Bar & Playback Controls -->
+            <div class="flex flex-col gap-1.5 px-3 py-2 bg-[#141722]">
+                <div id="waveformWrap" class="relative w-full h-7 rounded-lg bg-[#0f121b] border border-[#272c40] overflow-hidden cursor-pointer touch-none" title="タップ・ドラッグで再生位置を移動">
+                    <canvas id="waveformCanvas" class="block w-full h-full"></canvas>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-1.5">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button id="btnPlay" type="button" class="min-w-[80px] px-3 py-1.5 rounded-lg accent-bg text-white text-xs font-bold active:scale-95 transition">
+                            ▶ 再生
+                        </button>
+                        <button id="btnRewind3" type="button" class="px-2.5 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-[#f4f6fb] active:scale-95">
+                            ↺ -3秒
+                        </button>
+                        <div class="inline-flex bg-[#0f121b] border border-[#272c40] rounded-lg p-0.5 gap-0.5" role="group" aria-label="再生速度">
+                            <button type="button" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-bold text-[#7f87a3]" data-speed="0.5">0.5x</button>
+                            <button type="button" class="speed-btn px-2 py-1 rounded-md text-[11px] font-mono font-bold text-[#7f87a3]" data-speed="0.75">0.75x</button>
+                            <button type="button" class="speed-btn active px-2 py-1 rounded-md text-[11px] font-mono font-bold text-[#7f87a3]" data-speed="1">1.0x</button>
+                        </div>
+                    </div>
+                    <div id="timeDisplay" class="font-mono text-[11px] font-bold text-[#b9c0d6] bg-[#0f121b] border border-[#272c40] px-2.5 py-1 rounded-lg">
+                        00:00.0 / 00:00.0
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===============================================================
+             3. MAIN 4-TAB BAR + SCROLLABLE PANELS
+             =============================================================== -->
+        <section class="flex-1 min-h-0 flex flex-col bg-[#0d0f17]">
+            <nav class="shrink-0 grid grid-cols-4 bg-[#141722] border-b border-[#272c40] z-10" role="tablist">
+                <button type="button" class="main-tab-btn active py-2.5 px-1 text-[11px] sm:text-xs font-bold text-[#7f87a3] border-b-2 border-transparent truncate" data-tab="assets" role="tab" aria-selected="true">
+                    ① 素材・歌詞
+                </button>
+                <button type="button" class="main-tab-btn py-2.5 px-1 text-[11px] sm:text-xs font-bold text-[#7f87a3] border-b-2 border-transparent truncate" data-tab="style" role="tab" aria-selected="false">
+                    ② 見た目
+                </button>
+                <button type="button" class="main-tab-btn py-2.5 px-1 text-[11px] sm:text-xs font-bold text-[#7f87a3] border-b-2 border-transparent truncate" data-tab="tap" role="tab" aria-selected="false">
+                    ③ タップ同期
+                </button>
+                <button type="button" class="main-tab-btn py-2.5 px-1 text-[11px] sm:text-xs font-bold text-[#7f87a3] border-b-2 border-transparent truncate" data-tab="edit" role="tab" aria-selected="false">
+                    ④ 微調整
+                </button>
+            </nav>
+
+            <!-- ===========================================================
+                 TAB 1: ① 素材・歌詞
+                 =========================================================== -->
+            <div id="panel-assets" class="main-tab-panel flex-1 min-h-0 overflow-y-auto p-3 safe-bottom flex flex-col gap-3">
+                <!-- Media Uploads (iOS-Safe) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <!-- Background Image -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-white">背景画像</span>
+                            <button id="btnClearImage" type="button" class="hidden px-2 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] text-[11px] font-bold text-[#b9c0d6]">
+                                クリア
+                            </button>
+                        </div>
+                        <label for="imageInput" class="flex items-center gap-2.5 p-2.5 rounded-lg border border-dashed border-[#3c435e] bg-[#1b1f2e] hover:border-purple-400 cursor-pointer transition">
+                            <div class="w-10 h-10 rounded-md bg-[#0f121b] border border-[#272c40] flex items-center justify-center text-lg text-[#7f87a3] overflow-hidden shrink-0">
+                                <span id="imgThumbPlaceholder">🖼</span>
+                                <img id="imgThumbPreview" alt="背景サムネイル" class="hidden w-full h-full object-cover">
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div id="imageFileName" class="text-xs font-bold text-white truncate">画像を選択（PNG / JPG / WebP）</div>
+                                <div id="imageFileStatus" class="text-[11px] text-[#7f87a3] truncate">タップして背景イラストを読み込み</div>
+                            </div>
+                            <span class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold accent-bg text-white">選択</span>
+                        </label>
+                        <input id="imageInput" type="file" accept="image/*" class="visually-hidden-file">
+                    </div>
+
+                    <!-- Audio File (CRITICAL: NO accept attribute for iPhone MP3 compatibility) -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-white">音源ファイル（必須）</span>
+                            <button id="btnClearAudio" type="button" class="hidden px-2 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] text-[11px] font-bold text-[#b9c0d6]">
+                                クリア
+                            </button>
+                        </div>
+                        <label for="audioInput" class="flex items-center gap-2.5 p-2.5 rounded-lg border border-dashed border-[#3c435e] bg-[#1b1f2e] hover:border-purple-400 cursor-pointer transition">
+                            <div class="w-10 h-10 rounded-md bg-[#0f121b] border border-[#272c40] flex items-center justify-center text-lg text-[#7f87a3] shrink-0">
+                                ♪
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div id="audioFileName" class="text-xs font-bold text-white truncate">音源を選択（MP3 / WAV / M4A 等）</div>
+                                <div id="audioFileStatus" class="text-[11px] text-[#7f87a3] truncate">iPhoneのファイルアプリからMP3選択可能</div>
+                            </div>
+                            <span class="shrink-0 px-2.5 py-1 rounded-full text-[11px] font-bold accent-bg text-white">選択</span>
+                        </label>
+                        <input id="audioInput" type="file" class="visually-hidden-file">
+                    </div>
+                </div>
+
+                <!-- Lyrics Input -->
+                <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-extrabold text-white">歌詞の貼り付け・編集</span>
+                        <span id="lyricsCountBadge" class="text-[11px] font-bold text-[#7f87a3]">0 行</span>
+                    </div>
+                    <textarea id="lyricsTextarea" rows="5" class="w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-sm text-white placeholder-[#7f87a3] focus:outline-none focus:border-purple-400 select-text" placeholder="ここに歌詞を貼り付けてください（1行＝1フレーズ）&#10;空行を入れると間奏（文字消しポイント）になります"></textarea>
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <label class="inline-flex items-center gap-2 text-xs text-[#b9c0d6] cursor-pointer">
+                            <input id="chkBlankAsBreak" type="checkbox" checked class="w-4 h-4 rounded accent-purple-500">
+                            <span>空行を間奏（文字消し）として扱う</span>
+                        </label>
+                        <button id="btnApplyLyrics" type="button" class="px-4 py-2 rounded-lg accent-bg text-white text-xs font-extrabold active:scale-95 transition">
+                            歌詞を反映
+                        </button>
+                    </div>
+                    <p class="text-[11px] text-[#7f87a3]">
+                        ※ 新しく追加した行はすべて「未設定」からスタートします。誤字を直して再反映しても既存のタイミングは保持されます。
+                    </p>
+                </div>
+
+                <!-- Project Management & JSON Backup -->
+                <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-extrabold text-white">プロジェクト管理・バックアップ</span>
+                        <span id="autosaveStatus" class="text-[11px] font-bold text-emerald-400">● 自動保存オン</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <select id="projectSelect" class="flex-1 min-w-[140px] rounded-lg bg-[#0f121b] border border-[#272c40] px-2.5 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-400" aria-label="プロジェクト切替"></select>
+                        <button id="btnNewProject" type="button" class="px-3 py-2 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-white active:scale-95">
+                            + 新規
+                        </button>
+                        <button id="btnDeleteProject" type="button" class="px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/40 text-xs font-bold text-red-200 active:scale-95">
+                            削除
+                        </button>
+                    </div>
+                    <input id="projectNameInput" type="text" class="w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-xs text-white placeholder-[#7f87a3] focus:outline-none focus:border-purple-400 select-text" placeholder="プロジェクト名（曲名など）">
+                    <div class="flex flex-wrap gap-2">
+                        <button id="btnCopyJson" type="button" class="px-3 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-[#f4f6fb] active:scale-95">
+                            JSONコピー
+                        </button>
+                        <button id="btnRestoreJson" type="button" class="px-3 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-[#f4f6fb] active:scale-95">
+                            JSON読込
+                        </button>
+                    </div>
+                    <textarea id="jsonBackupBox" rows="2" class="w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-xs font-mono text-[#b9c0d6] placeholder-[#7f87a3] focus:outline-none focus:border-purple-400 select-text" placeholder="バックアップ用JSONをここに貼り付けて「JSON読込」で復元できます"></textarea>
+                </div>
+            </div>
+
+            <!-- ===========================================================
+                 TAB 2: ② 見た目 (With Sub-Tabs: ✨ かんたん設定 / 🎛️ 詳細設定)
+                 =========================================================== -->
+            <div id="panel-style" class="main-tab-panel hidden flex-1 min-h-0 overflow-y-auto p-3 safe-bottom flex flex-col gap-3">
+                <!-- Sub-Tab Switcher (Controlled by Independent First Script) -->
+                <div class="shrink-0 grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-[#141722] border border-[#3c435e]" role="tablist" aria-label="見た目設定の切替">
+                    <button type="button" class="style-subtab-btn active py-2 px-2 rounded-lg text-xs font-extrabold text-[#7f87a3] transition" data-style-subtab="simple" role="tab" aria-selected="true">
+                        ✨ かんたん設定
+                    </button>
+                    <button type="button" class="style-subtab-btn py-2 px-2 rounded-lg text-xs font-extrabold text-[#7f87a3] transition" data-style-subtab="advanced" role="tab" aria-selected="false">
+                        🎛️ 詳細設定
+                    </button>
+                </div>
+
+                <!-- SUB-TAB A: ✨ かんたん設定 -->
+                <div id="styleSub-simple" class="style-subpanel flex flex-col gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Aspect Ratio -->
+                        <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                            <span class="text-xs font-extrabold text-white">画面サイズ（比率）</span>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-aspect="16:9">16:9 横長</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-aspect="9:16">9:16 縦長</button>
+                            </div>
+                        </div>
+
+                        <!-- Accent Color -->
+                        <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                            <span class="text-xs font-extrabold text-white">アクセントカラー</span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" class="swatch-btn active w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#a855f7" style="background:#a855f7;" aria-label="パープル"></button>
+                                <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#ec4899" style="background:#ec4899;" aria-label="ピンク"></button>
+                                <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#38bdf8" style="background:#38bdf8;" aria-label="シアン"></button>
+                                <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#ef4444" style="background:#ef4444;" aria-label="レッド"></button>
+                                <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#f59e0b" style="background:#f59e0b;" aria-label="ゴールド"></button>
+                                <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#f8fafc" style="background:#f8fafc;" aria-label="ホワイト"></button>
+                                <label class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1b1f2e] border border-[#272c40] text-[11px] font-bold text-[#b9c0d6] cursor-pointer">
+                                    <span>自由</span>
+                                    <input id="accentColorInput" type="color" value="#a855f7" class="w-5 h-5 border-0 bg-transparent p-0 cursor-pointer">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5 Audio-Reactive Visual Presets -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                        <span class="text-xs font-extrabold text-white">演出プリセット（音連動）</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                            <button type="button" class="choice-btn active py-2 px-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-preset="gothic">ダーク・ゴシック</button>
+                            <button type="button" class="choice-btn py-2 px-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-preset="pop">キラキラ・ポップ</button>
+                            <button type="button" class="choice-btn py-2 px-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-preset="ballad">エモ・バラード</button>
+                            <button type="button" class="choice-btn py-2 px-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-preset="rock">クール・ロック</button>
+                            <button type="button" class="choice-btn py-2 px-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-preset="simple">シンプル</button>
+                        </div>
+                    </div>
+
+                    <!-- 8 Fonts & 4 Animations -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                            <span class="text-xs font-extrabold text-white">フォント（8書体）</span>
+                            <select id="fontSelect" class="w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-purple-400">
+                                <option value="Noto Sans JP">Noto Sans JP（王道ゴシック）</option>
+                                <option value="Shippori Mincho" selected>Shippori Mincho（しっぽり明朝）</option>
+                                <option value="Zen Maru Gothic">Zen Maru Gothic（やわらか丸ゴシック）</option>
+                                <option value="Dela Gothic One">Dela Gothic One（極太インパクト）</option>
+                                <option value="Kaisei Decol">Kaisei Decol（装飾系・エモ明朝）</option>
+                                <option value="M PLUS Rounded 1c">M PLUS Rounded 1c（ポップ丸文字）</option>
+                                <option value="Yuji Syuku">Yuji Syuku（筆文字・和風エモ）</option>
+                                <option value="RocknRoll One">RocknRoll One（ロック・疾走感）</option>
+                            </select>
+                            <div id="fontPreviewStrip" class="px-3 py-2 rounded-lg bg-[#0f121b] border border-[#272c40] text-center text-sm text-white truncate">
+                                夜空に響くメロディを刻んで
+                            </div>
+                        </div>
+
+                        <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                            <span class="text-xs font-extrabold text-white">文字アニメーション</span>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-anim="fade">ふわっとフェード</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-anim="slide">下からスライド</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-anim="typewriter">タイプライター</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-anim="scale">ポップイン</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Writing Direction, Dynamic Lyric Position & Easy Font Size -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-3">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div class="flex flex-col gap-2">
+                                <span class="text-xs font-extrabold text-white">文字の向き</span>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-dir="horizontal">横書き</button>
+                                    <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-dir="vertical">縦書き</button>
+                                </div>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <span class="text-xs font-extrabold text-white">文字サイズ（かんたん）</span>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-size="small">小</button>
+                                    <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-size="medium">中</button>
+                                    <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-size="large">大</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2 pt-2 border-t border-[#272c40]">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-extrabold text-white">歌詞の位置</span>
+                                <span id="posHintText" class="text-[11px] text-[#7f87a3]">横書き配置（上部・中央・下部）</span>
+                            </div>
+                            <!-- Horizontal Position Options -->
+                            <div id="posGroupHorizontal" class="grid grid-cols-3 gap-2">
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-hpos="top">上部</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-hpos="center">中央</button>
+                                <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-hpos="bottom">下部</button>
+                            </div>
+                            <!-- Vertical Position Options -->
+                            <div id="posGroupVertical" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <button type="button" class="choice-btn active py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-vpos="right">右側</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-vpos="center">中央</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-vpos="left">左側</button>
+                                <button type="button" class="choice-btn py-2 rounded-lg border border-[#272c40] bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]" data-vpos="alternate">左右交互 (両端)</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB B: 🎛️ 詳細設定 (7 Real-Time Sliders) -->
+                <div id="styleSub-advanced" class="style-subpanel hidden flex-col gap-3">
+                    <div class="bg-[#141722] border-2 accent-border rounded-xl overflow-hidden shadow-lg">
+                        <div class="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-[#1b1f2e] border-b border-[#272c40]">
+                            <span class="text-xs font-extrabold text-white">🎛️ 演出・文字の詳細設定</span>
+                            <button id="btnResetAdvanced" type="button" class="px-2.5 py-1 rounded-md bg-[#0f121b] border border-[#3c435e] text-[11px] font-bold text-[#f4f6fb] active:scale-95">
+                                ↺ 初期値に戻す
+                            </button>
+                        </div>
+
+                        <div class="p-3.5 flex flex-col gap-3.5">
+                            <p class="text-[11px] text-[#7f87a3]">
+                                スライダーを動かすと上のプレビューとフル尺MP4書き出しにリアルタイム反映されます。
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>1. パーティクルの量</span>
+                                        <span id="valParticleAmount" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">100%</span>
+                                    </div>
+                                    <input id="sliderParticleAmount" type="range" min="0" max="200" step="5" value="100">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>2. 演出の動きの速さ</span>
+                                        <span id="valFxSpeed" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">1.0x</span>
+                                    </div>
+                                    <input id="sliderFxSpeed" type="range" min="0.3" max="2.5" step="0.1" value="1.0">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>3. ビート揺れ・発光の強さ</span>
+                                        <span id="valBeatIntensity" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">100%</span>
+                                    </div>
+                                    <input id="sliderBeatIntensity" type="range" min="0" max="200" step="5" value="100">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>4. 背景の暗さ（暗幕）</span>
+                                        <span id="valDimness" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">35%</span>
+                                    </div>
+                                    <input id="sliderDimness" type="range" min="0" max="85" step="5" value="35">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>5. 文字の縁取り・光彩の強さ</span>
+                                        <span id="valGlow" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">100%</span>
+                                    </div>
+                                    <input id="sliderGlow" type="range" min="0" max="200" step="5" value="100">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>6. 字間（文字の間隔）</span>
+                                        <span id="valLetterSpacing" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">2px</span>
+                                    </div>
+                                    <input id="sliderLetterSpacing" type="range" min="-2" max="16" step="1" value="2">
+                                </div>
+
+                                <div class="flex flex-col gap-1.5">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-[#b9c0d6]">
+                                        <span>7. 文字サイズ微調整</span>
+                                        <span id="valSizeFine" class="font-mono text-[11px] font-bold text-white bg-[#0f121b] border border-[#3c435e] px-2 py-0.5 rounded-full">100%</span>
+                                    </div>
+                                    <input id="sliderSizeFine" type="range" min="70" max="150" step="5" value="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===========================================================
+                 TAB 3: ③ タップ同期
+                 =========================================================== -->
+            <div id="panel-tap" class="main-tab-panel hidden flex-1 min-h-0 overflow-y-auto p-3 safe-bottom flex flex-col gap-3">
+                <!-- Friendly Guide Card when Audio or Lyrics Missing -->
+                <div id="tapEmptyBanner" class="flex flex-col items-center text-center gap-3 p-6 rounded-2xl bg-[#141722] border border-dashed border-[#3c435e]">
+                    <div class="text-3xl">🎵</div>
+                    <div class="text-sm font-extrabold text-white">まずは音源と歌詞をセットしましょう！</div>
+                    <p class="text-xs text-[#7f87a3] max-w-xs leading-relaxed">
+                        「① 素材・歌詞」で楽曲ファイルと歌詞を登録すると、曲を聴きながら音ゲー感覚でタイミングを合わせられます。
+                    </p>
+                    <button type="button" class="px-4 py-2 rounded-lg accent-bg text-white text-xs font-extrabold active:scale-95" data-jump-tab="assets">
+                        ① 素材・歌詞へ移動
+                    </button>
+                </div>
+
+                <!-- Tap Sync Workspace -->
+                <div id="tapWorkspace" class="hidden flex-col gap-2.5 flex-1">
+                    <!-- Sync Progress & Jump to Line -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-2.5 flex flex-col gap-2">
+                        <div class="flex items-center justify-between text-[11px] font-bold">
+                            <span class="text-[#b9c0d6]">同期の進み具合</span>
+                            <span id="tapProgressBadge" class="font-mono text-emerald-400">済 0 / 0（未設定 0）</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <select id="tapJumpSelect" class="flex-1 min-w-[160px] rounded-lg bg-[#0f121b] border border-[#272c40] px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-400" aria-label="任意の行へ戻る"></select>
+                            <button id="btnTapJumpPlay" type="button" class="shrink-0 px-2.5 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#3c435e] text-[11px] font-bold text-white active:scale-95">
+                                ▶ 選んだ行の2秒前から再生
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Current Target & Next Line Preview Card -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-[#141722] border border-[#272c40] text-xs">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1b1f2e] text-[#7f87a3] shrink-0">直前</span>
+                            <span id="tapPrevText" class="flex-1 truncate text-[#7f87a3] font-semibold">（まだ打っていません）</span>
+                            <span id="tapPrevTime" class="font-mono text-[11px] text-[#7f87a3] shrink-0">--:--.-</span>
+                        </div>
+                        <div id="tapNextHero" class="rounded-xl bg-[#1b1f2e] border-2 accent-border p-3 text-center transition">
+                            <div id="tapNextLabel" class="text-[11px] font-extrabold accent-text mb-1">次に打つ歌詞 1 / 0</div>
+                            <div id="tapNextText" class="text-base sm:text-lg font-extrabold text-white leading-snug">---</div>
+                            <div id="tapAfterText" class="text-[11px] text-[#7f87a3] mt-1 truncate">その次: ---</div>
+                        </div>
+                    </div>
+
+                    <!-- Thumb-Friendly Bottom Controls -->
+                    <div class="flex flex-col gap-2 mt-auto pt-1">
+                        <button id="btnTapNext" type="button" class="w-full min-h-[62px] py-4 px-4 rounded-xl accent-bg text-white text-base font-extrabold shadow-lg active:scale-[0.98] transition">
+                            👆 次の歌詞へ（タップ同期）
+                        </button>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button id="btnTapClear" type="button" class="py-2.5 px-2 rounded-lg bg-red-500/15 border border-red-500/45 text-red-200 text-xs font-bold active:scale-95">
+                                ⏸ ここで消す / 間奏
+                            </button>
+                            <button id="btnTapUndo" type="button" class="py-2 px-2 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-white text-xs font-bold flex flex-col items-center justify-center active:scale-95">
+                                <span>↩ 1つ前を打ち直す</span>
+                                <span id="tapUndoSnippet" class="text-[10px] font-normal text-[#7f87a3] max-w-full truncate">先頭行です</span>
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-end gap-2">
+                            <span class="text-[11px] text-[#7f87a3]">全体タイミング補正:</span>
+                            <button id="btnGlobalM01" type="button" class="px-2.5 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95">
+                                全体 -0.1s
+                            </button>
+                            <button id="btnGlobalP01" type="button" class="px-2.5 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95">
+                                全体 +0.1s
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===========================================================
+                 TAB 4: ④ 微調整
+                 =========================================================== -->
+            <div id="panel-edit" class="main-tab-panel hidden flex-1 min-h-0 overflow-y-auto p-3 safe-bottom flex flex-col gap-3">
+                <div id="editEmptyBanner" class="flex flex-col items-center text-center gap-3 p-6 rounded-2xl bg-[#141722] border border-dashed border-[#3c435e]">
+                    <div class="text-3xl">✏️</div>
+                    <div class="text-sm font-extrabold text-white">まだ歌詞が登録されていません</div>
+                    <p class="text-xs text-[#7f87a3] max-w-xs leading-relaxed">
+                        「① 素材・歌詞」で歌詞を貼り付けて反映すると、ここで1行ずつループ再生しながら微調整できます。
+                    </p>
+                    <button type="button" class="px-4 py-2 rounded-lg accent-bg text-white text-xs font-extrabold active:scale-95" data-jump-tab="assets">
+                        ① 素材・歌詞へ移動
+                    </button>
+                </div>
+
+                <div id="editWorkspace" class="hidden flex-col gap-3">
+                    <!-- 1-Line Focus Editor -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2.5">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5">
+                                <button id="btnEditPrev" type="button" class="px-2.5 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-white active:scale-95">◀ 前</button>
+                                <span id="editRowLabel" class="font-mono text-xs font-extrabold text-white px-1">1 / 1</span>
+                                <span id="editStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1b1f2e] text-[#7f87a3] border border-[#3c435e]">未設定</span>
+                                <button id="btnEditNext" type="button" class="px-2.5 py-1 rounded-md bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-white active:scale-95">次 ▶</button>
+                            </div>
+                            <button id="btnRowLoop" type="button" class="px-2.5 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-[#f4f6fb] active:scale-95">
+                                🔁 この行をループ再生: OFF
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col gap-1">
+                            <label for="editTextInput" class="text-[11px] text-[#7f87a3]">歌詞テキスト（誤字修正してもタイミングは保持されます）</label>
+                            <input id="editTextInput" type="text" class="w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400 select-text" placeholder="歌詞テキスト（空にすると間奏扱い）">
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                            <!-- Start Time Box -->
+                            <div class="bg-[#1b1f2e] border border-[#272c40] rounded-lg p-2.5 flex flex-col gap-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs font-bold text-[#b9c0d6]">開始時刻 (秒)</span>
+                                    <input id="editStartNum" type="number" step="0.05" min="0" placeholder="未設定" class="w-24 rounded-md bg-[#0f121b] border border-[#272c40] px-2 py-1 text-right font-mono text-xs font-bold text-white focus:outline-none focus:border-purple-400 select-text">
+                                </div>
+                                <div class="grid grid-cols-5 gap-1">
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="start" data-delta="-0.2">-0.2s</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="start" data-delta="-0.05">-0.05</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="start" data-delta="0.05">+0.05</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="start" data-delta="0.2">+0.2s</button>
+                                    <button id="btnSetStartNow" type="button" class="py-1.5 rounded accent-bg text-[10px] font-bold text-white active:scale-95">現在</button>
+                                </div>
+                            </div>
+
+                            <!-- End Time Box -->
+                            <div class="bg-[#1b1f2e] border border-[#272c40] rounded-lg p-2.5 flex flex-col gap-2">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-xs font-bold text-[#b9c0d6]">終了時刻 (秒)</span>
+                                    <input id="editEndNum" type="number" step="0.05" min="0" placeholder="未設定" class="w-24 rounded-md bg-[#0f121b] border border-[#272c40] px-2 py-1 text-right font-mono text-xs font-bold text-white focus:outline-none focus:border-purple-400 select-text">
+                                </div>
+                                <div class="grid grid-cols-5 gap-1">
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="end" data-delta="-0.2">-0.2s</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="end" data-delta="-0.05">-0.05</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="end" data-delta="0.05">+0.05</button>
+                                    <button type="button" class="nudge-btn py-1.5 rounded bg-[#0f121b] border border-[#272c40] font-mono text-[11px] font-bold text-white active:scale-95" data-field="end" data-delta="0.2">+0.2s</button>
+                                    <button id="btnSetEndNow" type="button" class="py-1.5 rounded accent-bg text-[10px] font-bold text-white active:scale-95">現在</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button id="btnRowUnset" type="button" class="px-3 py-1.5 rounded-lg bg-red-500/15 border border-red-500/40 text-red-200 text-xs font-bold active:scale-95">
+                                × 時間をクリア
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Color-Coded List -->
+                    <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-white">全行リスト（タップで選択）</span>
+                            <span id="editSummaryCount" class="text-[11px] font-mono text-[#7f87a3]">済 0 / 0</span>
+                        </div>
+                        <div id="fullLyricList" class="flex flex-col gap-1 max-h-56 overflow-y-auto p-1.5 rounded-lg bg-[#0f121b] border border-[#272c40]"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ===================================================================
+         CUSTOM DIALOG MODAL (NO alert() OR confirm())
+         =================================================================== -->
+    <div id="modalDialog" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div class="w-full max-w-sm rounded-2xl bg-[#141722] border border-[#3c435e] overflow-hidden shadow-2xl">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-[#272c40]">
+                <span id="dialogTitle" class="text-sm font-extrabold text-white">確認</span>
+                <button id="btnDialogClose" type="button" class="px-2 py-1 rounded bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]">✕</button>
+            </div>
+            <div class="p-4 flex flex-col gap-3">
+                <p id="dialogMessage" class="text-xs text-[#b9c0d6] leading-relaxed"></p>
+                <input id="dialogInput" type="text" class="hidden w-full rounded-lg bg-[#0f121b] border border-[#272c40] px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-400 select-text" placeholder="入力してください">
+            </div>
+            <div class="flex justify-end gap-2 px-4 py-3 border-t border-[#272c40]">
+                <button id="btnDialogCancel" type="button" class="px-3 py-1.5 rounded-lg bg-[#1b1f2e] border border-[#272c40] text-xs font-bold text-[#b9c0d6]">キャンセル</button>
+                <button id="btnDialogOk" type="button" class="px-4 py-1.5 rounded-lg accent-bg text-xs font-extrabold text-white">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================
+         MP4 EXPORT COMPLETION / ERROR MODAL
+         =================================================================== -->
+    <div id="modalExport" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div class="w-full max-w-md max-h-[88dvh] rounded-2xl bg-[#141722] border border-[#3c435e] flex flex-col overflow-hidden shadow-2xl">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-[#272c40]">
+                <span id="exportModalTitle" class="text-sm font-extrabold text-white">フル尺MP4書き出し完了！</span>
+                <button id="btnCloseExport" type="button" class="px-2 py-1 rounded bg-[#1b1f2e] text-xs font-bold text-[#b9c0d6]">✕</button>
+            </div>
+            <div class="p-4 overflow-y-auto flex flex-col gap-3">
+                <div id="exportErrorBox" class="hidden p-3 rounded-lg bg-red-500/15 border border-red-500/50 text-red-200 text-xs leading-relaxed"></div>
+
+                <div id="exportReadyBox" class="flex flex-col gap-3">
+                    <div class="flex flex-wrap gap-1.5">
+                        <span id="diagSize" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">0.00 MB</span>
+                        <span class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-[#1b1f2e] border border-[#3c435e] text-[#b9c0d6]">video/mp4</span>
+                        <span id="diagAudio" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-emerald-500/15 border border-emerald-500/40 text-emerald-300">音声あり</span>
+                        <span id="diagRes" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-[#1b1f2e] border border-[#3c435e] text-[#b9c0d6]">1280×720</span>
+                        <span id="diagDur" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-bold bg-[#1b1f2e] border border-[#3c435e] text-[#b9c0d6]">00:00.0</span>
+                    </div>
+
+                    <div id="exportFallbackNote" class="hidden p-3 rounded-lg bg-amber-500/15 border border-amber-500/45 text-amber-100 text-xs leading-relaxed">
+                        このブラウザは音声エンコード非対応のため、<strong>映像のみMP4</strong>で書き出しました。iPhoneではCapCut等で元の音源を <strong>0:00</strong> に重ねてください / PCのChromeなら音声付きで書き出せます。
+                    </div>
+
+                    <video id="exportVideoPreview" class="w-full max-h-[34dvh] rounded-lg bg-black border border-[#272c40]" controls playsinline></video>
+
+                    <button id="btnDownloadMp4" type="button" class="w-full py-3 px-4 rounded-xl accent-bg text-white text-sm font-extrabold shadow-lg active:scale-95 transition">
+                        ⬇ MP4をダウンロード保存
+                    </button>
+                    <button id="btnShareMp4" type="button" class="hidden w-full py-3 px-4 rounded-xl bg-emerald-500/20 border border-emerald-500/50 text-emerald-100 text-sm font-extrabold active:scale-95 transition">
+                        ↗ 共有 / ビデオを保存 (iPhone写真フォルダ)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-1.5 pointer-events-none max-w-[92vw]"></div>
+
+    <!-- ===================================================================
+         SCRIPT 1: COMPLETELY INDEPENDENT TAB & SUB-TAB SWITCHER
+         Runs first, zero dependencies, guaranteed never to break!
+         =================================================================== -->
+    <script>
+        (function () {
+            try {
+                window.__nmvActiveTab = 'assets';
+                window.__nmvStyleSubTab = 'simple';
+
+                window.__nmvSwitchTab = function (tabName) {
+                    try {
+                        window.__nmvActiveTab = tabName;
+                        var btns = document.querySelectorAll('.main-tab-btn[data-tab]');
+                        for (var i = 0; i < btns.length; i++) {
+                            var match = btns[i].getAttribute('data-tab') === tabName;
+                            btns[i].classList.toggle('active', match);
+                            btns[i].setAttribute('aria-selected', match ? 'true' : 'false');
+                        }
+                        var panels = document.querySelectorAll('.main-tab-panel');
+                        for (var j = 0; j < panels.length; j++) {
+                            var isTarget = panels[j].id === 'panel-' + tabName;
+                            panels[j].classList.toggle('hidden', !isTarget);
+                        }
+                        window.dispatchEvent(new CustomEvent('nmv:tabchange', { detail: { tab: tabName } }));
+                    } catch (e) {}
+                };
+
+                window.__nmvSwitchStyleSubTab = function (subName) {
+                    try {
+                        window.__nmvStyleSubTab = subName;
+                        var subBtns = document.querySelectorAll('.style-subtab-btn[data-style-subtab]');
+                        for (var i = 0; i < subBtns.length; i++) {
+                            var match = subBtns[i].getAttribute('data-style-subtab') === subName;
+                            subBtns[i].classList.toggle('active', match);
+                            subBtns[i].setAttribute('aria-selected', match ? 'true' : 'false');
+                        }
+                        var subPanels = document.querySelectorAll('.style-subpanel');
+                        for (var j = 0; j < subPanels.length; j++) {
+                            var isTarget = subPanels[j].id === 'styleSub-' + subName;
+                            subPanels[j].classList.toggle('hidden', !isTarget);
+                            if (isTarget) {
+                                subPanels[j].classList.add('flex');
+                            } else {
+                                subPanels[j].classList.remove('flex');
+                            }
+                        }
+                    } catch (e) {}
+                };
+
+                // Attach Main Tab Clicks
+                var mainBtns = document.querySelectorAll('.main-tab-btn[data-tab]');
+                for (var m = 0; m < mainBtns.length; m++) {
+                    (function (btn) {
+                        btn.addEventListener('click', function () {
+                            window.__nmvSwitchTab(btn.getAttribute('data-tab'));
+                        });
+                    })(mainBtns[m]);
+                }
+
+                // Attach Jump-to-Tab Buttons
+                var jumpBtns = document.querySelectorAll('[data-jump-tab]');
+                for (var jp = 0; jp < jumpBtns.length; jp++) {
+                    (function (btn) {
+                        btn.addEventListener('click', function () {
+                            window.__nmvSwitchTab(btn.getAttribute('data-jump-tab'));
+                        });
+                    })(jumpBtns[jp]);
+                }
+
+                // Attach Tab 2 Sub-Tab Clicks
+                var subBtnsInit = document.querySelectorAll('.style-subtab-btn[data-style-subtab]');
+                for (var s = 0; s < subBtnsInit.length; s++) {
+                    (function (btn) {
+                        btn.addEventListener('click', function () {
+                            window.__nmvSwitchStyleSubTab(btn.getAttribute('data-style-subtab'));
+                        });
+                    })(subBtnsInit[s]);
+                }
+            } catch (e) {
+                console.error('Independent tab switcher error:', e);
+            }
+        })();
+    </script>
+
+    <!-- ===================================================================
+         SCRIPT 2: MAIN APPLICATION ENGINE (NATSUMOTO MV STUDIO)
+         =================================================================== -->
+    <script>
+        (function () {
+            'use strict';
+
+            // -----------------------------------------------------------------
+            // 1. SAFE HELPERS & UTILITIES
+            // -----------------------------------------------------------------
+            function $(id) { return document.getElementById(id); }
+            function on(el, ev, fn, opts) { if (el) el.addEventListener(ev, fn, opts); }
+            function round2(v) { return Math.round(v * 100) / 100; }
+            function clamp(val, min, max, fallback) {
+                var n = Number(val);
+                if (isNaN(n)) return fallback;
+                return Math.max(min, Math.min(max, n));
+            }
+
+            function showToast(msg, type) {
+                var box = $('toastContainer');
+                if (!box) return;
+                var el = document.createElement('div');
+                var cls = 'px-4 py-2 rounded-xl text-xs font-bold shadow-xl border ';
+                if (type === 'success') cls += 'bg-[#172521] border-emerald-500/60 text-emerald-100';
+                else if (type === 'error') cls += 'bg-[#2a161b] border-red-500/60 text-red-100';
+                else cls += 'bg-[#1e2233] border-[#3c435e] text-white';
+                el.className = cls;
+                el.textContent = msg;
+                box.appendChild(el);
+                setTimeout(function () {
+                    if (el.parentNode) el.parentNode.removeChild(el);
+                }, 3000);
+            }
+
+            function formatMMSSd(sec) {
+                var s = Math.max(0, sec || 0);
+                var m = Math.floor(s / 60);
+                var rem = s - m * 60;
+                var whole = Math.floor(rem);
+                var tenth = Math.floor((rem - whole + 0.0001) * 10) % 10;
+                return String(m).padStart(2, '0') + ':' + String(whole).padStart(2, '0') + '.' + tenth;
+            }
+
+            function formatMMSS(sec) {
+                var s = Math.max(0, Math.round(sec || 0));
+                return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+            }
+
+            function formatBytes(bytes) {
+                if (!bytes || bytes <= 0) return '0 KB';
+                if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+
+            function truncate(str, maxLen) {
+                var arr = Array.from(str || '');
+                return arr.length > maxLen ? arr.slice(0, maxLen).join('') + '…' : str;
+            }
+
+            function hexToRgba(hex, alpha) {
+                var h = (hex || '#a855f7').replace('#', '');
+                if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+                var num = parseInt(h, 16);
+                if (isNaN(num)) return 'rgba(168,85,247,' + alpha + ')';
+                return 'rgba(' + ((num >> 16) & 255) + ',' + ((num >> 8) & 255) + ',' + (num & 255) + ',' + alpha + ')';
+            }
+
+            // -----------------------------------------------------------------
+            // 2. STATE & PROJECT SCHEMA (STARTS CLEANLY EMPTY)
+            // -----------------------------------------------------------------
+            var STORAGE_KEY = 'natsumoto_mv_studio_v4';
+            var ENVELOPE_STEP = 0.05; // 20 samples/sec
+
+            var FONT_META = {
+                'Noto Sans JP':      { weight: '900', fallback: 'sans-serif' },
+                'Shippori Mincho':   { weight: '700', fallback: 'serif' },
+                'Zen Maru Gothic':   { weight: '700', fallback: 'sans-serif' },
+                'Dela Gothic One':   { weight: '400', fallback: 'sans-serif' },
+                'Kaisei Decol':      { weight: '700', fallback: 'serif' },
+                'M PLUS Rounded 1c': { weight: '800', fallback: 'sans-serif' },
+                'Yuji Syuku':        { weight: '400', fallback: 'serif' },
+                'RocknRoll One':     { weight: '400', fallback: 'sans-serif' }
+            };
+
+            function defaultStyle() {
+                return {
+                    aspect: '16:9',
+                    preset: 'gothic',
+                    accentColor: '#a855f7',
+                    font: 'Shippori Mincho',
+                    textAnim: 'fade',
+                    writingMode: 'horizontal',
+                    horizontalPos: 'bottom',
+                    verticalPos: 'right',
+                    textSize: 'medium',
+                    particleAmount: 100,
+                    fxSpeed: 1.0,
+                    beatIntensity: 100,
+                    dimness: 35,
+                    glowStrength: 100,
+                    letterSpacing: 2,
+                    sizeFine: 100
+                };
+            }
+
+            function sanitizeStyle(raw) {
+                var s = Object.assign({}, defaultStyle(), raw || {});
+                if (!FONT_META[s.font]) s.font = 'Shippori Mincho';
+                if (s.writingMode !== 'vertical') s.writingMode = 'horizontal';
+                if (['top', 'center', 'bottom'].indexOf(s.horizontalPos) === -1) s.horizontalPos = 'bottom';
+                if (['right', 'center', 'left', 'alternate'].indexOf(s.verticalPos) === -1) s.verticalPos = 'right';
+                if (['fade', 'slide', 'typewriter', 'scale'].indexOf(s.textAnim) === -1) s.textAnim = 'fade';
+                if (['small', 'medium', 'large'].indexOf(s.textSize) === -1) s.textSize = 'medium';
+                s.particleAmount = clamp(s.particleAmount, 0, 200, 100);
+                s.fxSpeed = clamp(s.fxSpeed, 0.3, 2.5, 1.0);
+                s.beatIntensity = clamp(s.beatIntensity, 0, 200, 100);
+                s.dimness = clamp(s.dimness, 0, 85, 35);
+                s.glowStrength = clamp(s.glowStrength, 0, 200, 100);
+                s.letterSpacing = clamp(s.letterSpacing, -2, 16, 2);
+                s.sizeFine = clamp(s.sizeFine, 70, 150, 100);
+                return s;
+            }
+
+            function createBlankProject(name) {
+                return {
+                    id: 'proj_' + Date.now() + '_' + Math.floor(Math.random() * 10000),
+                    name: name || 'マイMV 1',
+                    lyrics: [],
+                    style: defaultStyle()
+                };
+            }
+
+            var state = {
+                projects: [createBlankProject('マイMV 1')],
+                currentProjectId: null,
+                bgImage: null,
+                bgImageUrl: null,
+                audioUrl: null,
+                hasAudio: false,
+                duration: 0,
+                decodedAudioBuffer: null,
+                envelopeRms: null,
+                envelopeBass: null,
+                waveformPeaks: null,
+                isPlaying: false,
+                playbackRate: 1.0,
+                currentTime: 0,
+                tapIndex: 0,
+                activeTapIdx: -1,
+                editIndex: 0,
+                rowLoop: false,
+                lastFrameMs: performance.now(),
+                isExporting: false,
+                cancelExport: false,
+                lastExportBlob: null,
+                lastExportUrl: null,
+                lastExportName: ''
+            };
+            state.currentProjectId = state.projects[0].id;
+
+            function currentProject() {
+                for (var i = 0; i < state.projects.length; i++) {
+                    if (state.projects[i].id === state.currentProjectId) return state.projects[i];
+                }
+                if (state.projects.length === 0) {
+                    var p = createBlankProject('マイMV 1');
+                    state.projects.push(p);
+                    state.currentProjectId = p.id;
+                }
+                return state.projects[0];
+            }
+
+            function isRowBreak(row) {
+                return Boolean(row && (row.isBreak || !row.text || !row.text.trim()));
+            }
+
+            function isRowSynced(row) {
+                return Boolean(row && typeof row.start === 'number' && typeof row.end === 'number');
+            }
+
+            function rowLabel(row) {
+                return isRowBreak(row) ? '（間奏 / 文字消し）' : row.text;
+            }
+
+            // -----------------------------------------------------------------
+            // 3. CUSTOM DIALOG HELPER
+            // -----------------------------------------------------------------
+            var dialogResolver = null;
+            function openDialog(opts) {
+                return new Promise(function (resolve) {
+                    dialogResolver = resolve;
+                    $('dialogTitle').textContent = opts.title || '確認';
+                    $('dialogMessage').textContent = opts.message || '';
+                    $('btnDialogOk').textContent = opts.okText || 'OK';
+                    $('btnDialogCancel').classList.toggle('hidden', Boolean(opts.hideCancel));
+                    var inp = $('dialogInput');
+                    if (opts.inputMode) {
+                        inp.classList.remove('hidden');
+                        inp.value = opts.defaultValue || '';
+                    } else {
+                        inp.classList.add('hidden');
+                    }
+                    var m = $('modalDialog');
+                    m.classList.remove('hidden');
+                    m.classList.add('flex');
+                    if (opts.inputMode) setTimeout(function () { inp.focus(); }, 30);
+                });
+            }
+
+            function closeDialog(val) {
+                var m = $('modalDialog');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+                if (dialogResolver) {
+                    var r = dialogResolver;
+                    dialogResolver = null;
+                    r(val);
+                }
+            }
+
+            on($('btnDialogClose'), 'click', function () { closeDialog(false); });
+            on($('btnDialogCancel'), 'click', function () { closeDialog(false); });
+            on($('btnDialogOk'), 'click', function () {
+                var inp = $('dialogInput');
+                if (!inp.classList.contains('hidden')) closeDialog(inp.value.trim());
+                else closeDialog(true);
+            });
+
+            // -----------------------------------------------------------------
+            // 4. STORAGE PERSISTENCE
+            // -----------------------------------------------------------------
+            function saveProjects() {
+                try {
+                    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                        version: 4,
+                        currentProjectId: state.currentProjectId,
+                        projects: state.projects
+                    }));
+                    $('autosaveStatus').textContent = '● 自動保存済';
+                } catch (e) {
+                    $('autosaveStatus').textContent = '● JSONバックアップ推奨';
+                }
+            }
+
+            function loadProjects() {
+                try {
+                    var raw = window.localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return;
+                    var parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.projects) && parsed.projects.length > 0) {
+                        state.projects = parsed.projects.map(function (p) {
+                            return {
+                                id: p.id || ('proj_' + Date.now()),
+                                name: String(p.name || '無題のプロジェクト'),
+                                lyrics: Array.isArray(p.lyrics) ? p.lyrics.map(function (l) {
+                                    var t = String(l.text || '');
+                                    return {
+                                        text: t,
+                                        isBreak: Boolean(l.isBreak || !t.trim()),
+                                        start: typeof l.start === 'number' ? round2(l.start) : null,
+                                        end: typeof l.end === 'number' ? round2(l.end) : null
+                                    };
+                                }) : [],
+                                style: sanitizeStyle(p.style)
+                            };
+                        });
+                        state.currentProjectId = parsed.currentProjectId || state.projects[0].id;
+                    }
+                } catch (e) {}
+            }
+
+            // -----------------------------------------------------------------
+            // 5. iOS-SAFE AUDIO & IMAGE UPLOADS + PRE-DECODED 0.05s ENVELOPE
+            // -----------------------------------------------------------------
+            var audioEl = $('audioPlayer');
+            var mvCanvas = $('mvCanvas');
+            var ctx = mvCanvas.getContext('2d');
+            var wfWrap = $('waveformWrap');
+            var wfCanvas = $('waveformCanvas');
+            var wfCtx = wfCanvas.getContext('2d');
+
+            function buildEnvelope(buffer) {
+                var sr = buffer.sampleRate;
+                var ch0 = buffer.getChannelData(0);
+                var len = ch0.length;
+                var dur = buffer.duration;
+                var stepSamples = Math.max(1, Math.floor(sr * ENVELOPE_STEP));
+                var numSteps = Math.max(1, Math.ceil(dur / ENVELOPE_STEP));
+                var rmsArr = new Float32Array(numSteps);
+                var bassArr = new Float32Array(numSteps);
+                var maxRms = 0.001;
+                var maxBass = 0.001;
+                var lp = 0;
+
+                for (var s = 0; s < numSteps; s++) {
+                    var stIdx = s * stepSamples;
+                    var enIdx = Math.min(len, stIdx + stepSamples);
+                    var stride = Math.max(1, Math.floor((enIdx - stIdx) / 128));
+                    var sumSq = 0;
+                    var bassSq = 0;
+                    var cnt = 0;
+                    for (var i = stIdx; i < enIdx; i += stride) {
+                        var v = ch0[i];
+                        lp += 0.08 * (v - lp);
+                        sumSq += v * v;
+                        bassSq += lp * lp;
+                        cnt++;
+                    }
+                    var r = Math.sqrt(sumSq / Math.max(1, cnt));
+                    var b = Math.sqrt(bassSq / Math.max(1, cnt));
+                    rmsArr[s] = r;
+                    bassArr[s] = b;
+                    if (r > maxRms) maxRms = r;
+                    if (b > maxBass) maxBass = b;
+                }
+                for (var k = 0; k < numSteps; k++) {
+                    rmsArr[k] = Math.min(1, rmsArr[k] / maxRms);
+                    bassArr[k] = Math.min(1, bassArr[k] / maxBass);
+                }
+                state.envelopeRms = rmsArr;
+                state.envelopeBass = bassArr;
+
+                var bars = 200;
+                var peaks = new Float32Array(bars);
+                for (var bi = 0; bi < bars; bi++) {
+                    var i0 = Math.floor((bi / bars) * numSteps);
+                    var i1 = Math.max(i0 + 1, Math.floor(((bi + 1) / bars) * numSteps));
+                    var pk = 0;
+                    for (var p = i0; p < i1 && p < numSteps; p++) {
+                        if (rmsArr[p] > pk) pk = rmsArr[p];
+                    }
+                    peaks[bi] = pk;
+                }
+                state.waveformPeaks = peaks;
+            }
+
+            function decodeAudioInTempContext(file) {
+                try {
+                    var reader = new FileReader();
+                    reader.onload = function (ev) {
+                        if (!ev.target || !ev.target.result) return;
+                        var AC = window.AudioContext || window.webkitAudioContext;
+                        if (!AC) return;
+                        var tmpCtx = null;
+                        try { tmpCtx = new AC(); } catch (e) { return; }
+                        tmpCtx.decodeAudioData(
+                            ev.target.result.slice(0),
+                            function (buffer) {
+                                try {
+                                    state.decodedAudioBuffer = buffer;
+                                    if (buffer.duration && isFinite(buffer.duration)) {
+                                        state.duration = buffer.duration;
+                                        $('audioFileStatus').textContent = '長さ: ' + formatMMSSd(state.duration) + '（波形解析完了）';
+                                    }
+                                    buildEnvelope(buffer);
+                                    drawWaveform(getCurrentTime());
+                                } finally {
+                                    try { tmpCtx.close(); } catch (e) {}
+                                }
+                            },
+                            function () {
+                                state.decodedAudioBuffer = null;
+                                state.envelopeRms = null;
+                                state.envelopeBass = null;
+                                try { tmpCtx.close(); } catch (e) {}
+                            }
+                        );
+                    };
+                    reader.readAsArrayBuffer(file);
+                } catch (e) {}
+            }
+
+            // Image Upload
+            on($('imageInput'), 'change', function (e) {
+                var file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (state.bgImageUrl) {
+                    try { URL.revokeObjectURL(state.bgImageUrl); } catch (err) {}
+                }
+                var url = URL.createObjectURL(file);
+                var img = new Image();
+                img.onload = function () {
+                    state.bgImage = img;
+                    state.bgImageUrl = url;
+                    $('imageFileName').textContent = file.name;
+                    $('imageFileStatus').textContent = img.width + ' × ' + img.height + ' px';
+                    $('imgThumbPreview').src = url;
+                    $('imgThumbPreview').classList.remove('hidden');
+                    $('imgThumbPlaceholder').classList.add('hidden');
+                    $('btnClearImage').classList.remove('hidden');
+                    showToast('背景画像を読み込みました', 'success');
+                };
+                img.onerror = function () {
+                    $('imageInput').value = '';
+                    showToast('画像ファイルとして読み込めませんでした', 'error');
+                };
+                img.src = url;
+            });
+
+            on($('btnClearImage'), 'click', function () {
+                state.bgImage = null;
+                $('imageInput').value = '';
+                $('imageFileName').textContent = '画像を選択（PNG / JPG / WebP）';
+                $('imageFileStatus').textContent = 'タップして背景イラストを読み込み';
+                $('imgThumbPreview').classList.add('hidden');
+                $('imgThumbPlaceholder').classList.remove('hidden');
+                $('btnClearImage').classList.add('hidden');
+            });
+
+            // Audio Upload (NO accept attribute on input!)
+            on($('audioInput'), 'change', function (e) {
+                var file = e.target.files && e.target.files[0];
+                if (!file) return;
+                if (state.isPlaying) pauseAudio();
+                if (state.audioUrl) {
+                    try { URL.revokeObjectURL(state.audioUrl); } catch (err) {}
+                }
+
+                // Reject obvious non-audio types, allow blank/octet-stream (iOS MP3)
+                if (file.type && file.type.indexOf('audio/') !== 0 && file.type.indexOf('video/') !== 0 && file.type !== 'application/octet-stream') {
+                    $('audioInput').value = '';
+                    showToast('音声ファイル（MP3 / WAV / M4A 等）を選んでください', 'error');
+                    return;
+                }
+
+                var url = URL.createObjectURL(file);
+                state.audioUrl = url;
+                state.decodedAudioBuffer = null;
+                state.envelopeRms = null;
+                state.envelopeBass = null;
+                state.waveformPeaks = null;
+
+                audioEl.muted = false;
+                audioEl.volume = 1.0;
+                audioEl.src = url;
+                audioEl.load();
+                state.hasAudio = true;
+
+                $('audioFileName').textContent = file.name;
+                $('audioFileStatus').textContent = '読み込み・波形解析中...';
+                $('btnClearAudio').classList.remove('hidden');
+
+                decodeAudioInTempContext(file);
+
+                audioEl.onloadedmetadata = function () {
+                    if (audioEl.duration && isFinite(audioEl.duration)) {
+                        state.duration = audioEl.duration;
+                        $('audioFileStatus').textContent = '長さ: ' + formatMMSSd(state.duration);
+                        syncTapUI();
+                        showToast('音源を読み込みました (' + formatMMSSd(state.duration) + ')', 'success');
+                    }
+                };
+                audioEl.onended = function () { pauseAudio(); };
+                audioEl.onerror = function () {
+                    state.hasAudio = false;
+                    state.duration = 0;
+                    audioEl.removeAttribute('src');
+                    audioEl.load();
+                    $('audioInput').value = '';
+                    $('audioFileName').textContent = '音源を選択（MP3 / WAV / M4A 等）';
+                    $('audioFileStatus').textContent = 'iPhoneのファイルアプリからMP3選択可能';
+                    $('btnClearAudio').classList.add('hidden');
+                    syncTapUI();
+                    showToast('音声ファイルを読み込めませんでした', 'error');
+                };
+            });
+
+            on($('btnClearAudio'), 'click', function () {
+                if (state.isPlaying) pauseAudio();
+                state.hasAudio = false;
+                state.duration = 0;
+                state.decodedAudioBuffer = null;
+                state.envelopeRms = null;
+                state.envelopeBass = null;
+                state.waveformPeaks = null;
+                audioEl.removeAttribute('src');
+                audioEl.load();
+                $('audioInput').value = '';
+                $('audioFileName').textContent = '音源を選択（MP3 / WAV / M4A 等）';
+                $('audioFileStatus').textContent = 'iPhoneのファイルアプリからMP3選択可能';
+                $('btnClearAudio').classList.add('hidden');
+                syncTapUI();
+            });
+
+            // -----------------------------------------------------------------
+            // 6. PLAYBACK & WAVEFORM SEEKBAR
+            // -----------------------------------------------------------------
+            function getCurrentTime() {
+                if (state.hasAudio && !isNaN(audioEl.currentTime)) return audioEl.currentTime;
+                return state.currentTime;
+            }
+
+            function playAudio() {
+                if (state.isExporting) return;
+                if (!state.hasAudio) {
+                    showToast('先に「① 素材・歌詞」で音源を選択してください', 'error');
+                    window.__nmvSwitchTab('assets');
+                    return;
+                }
+                state.isPlaying = true;
+                $('btnPlay').textContent = '⏸ 一時停止';
+                audioEl.muted = false;
+                audioEl.volume = 1.0;
+                audioEl.playbackRate = state.playbackRate;
+                var p = audioEl.play();
+                if (p && typeof p.catch === 'function') {
+                    p.catch(function () {
+                        state.isPlaying = false;
+                        $('btnPlay').textContent = '▶ 再生';
+                        showToast('再生がブロックされました。もう一度タップしてください', 'error');
+                    });
+                }
+            }
+
+            function pauseAudio() {
+                state.isPlaying = false;
+                $('btnPlay').textContent = '▶ 再生';
+                if (state.hasAudio) {
+                    try { audioEl.pause(); } catch (e) {}
+                }
+            }
+
+            function seekTo(sec) {
+                var c = Math.max(0, Math.min(state.duration || 0, sec));
+                state.currentTime = c;
+                if (state.hasAudio) {
+                    try { audioEl.currentTime = c; } catch (e) {}
+                }
+                drawWaveform(c);
+                $('timeDisplay').textContent = formatMMSSd(c) + ' / ' + formatMMSSd(state.duration);
+            }
+
+            function resizeWaveform() {
+                var rect = wfWrap.getBoundingClientRect();
+                var dpr = Math.min(2, window.devicePixelRatio || 1);
+                wfCanvas.width = Math.max(1, Math.floor(rect.width * dpr));
+                wfCanvas.height = Math.max(1, Math.floor(rect.height * dpr));
+            }
+
+            function drawWaveform(t) {
+                var w = wfCanvas.width, h = wfCanvas.height;
+                if (w <= 0 || h <= 0) return;
+                wfCtx.fillStyle = '#0f121b';
+                wfCtx.fillRect(0, 0, w, h);
+
+                var proj = currentProject();
+                var accent = proj.style.accentColor || '#a855f7';
+                var dur = Math.max(0.01, state.duration);
+                var ratio = state.hasAudio ? Math.max(0, Math.min(1, t / dur)) : 0;
+
+                if (window.__nmvActiveTab === 'edit' && state.hasAudio && proj.lyrics[state.editIndex] && isRowSynced(proj.lyrics[state.editIndex])) {
+                    var r = proj.lyrics[state.editIndex];
+                    var x1 = (r.start / dur) * w;
+                    var x2 = (r.end / dur) * w;
+                    wfCtx.fillStyle = state.rowLoop ? 'rgba(239,68,68,0.28)' : hexToRgba(accent, 0.24);
+                    wfCtx.fillRect(x1, 0, Math.max(3, x2 - x1), h);
+                }
+
+                if (!state.waveformPeaks) {
+                    wfCtx.fillStyle = '#272c40';
+                    wfCtx.fillRect(0, h / 2 - 1, w, 2);
+                } else {
+                    var peaks = state.waveformPeaks;
+                    var barW = w / peaks.length;
+                    var mid = h / 2;
+                    for (var i = 0; i < peaks.length; i++) {
+                        var bh = Math.max(3, peaks[i] * h * 0.82);
+                        wfCtx.fillStyle = (i / peaks.length) <= ratio ? accent : 'rgba(150,158,185,0.28)';
+                        wfCtx.fillRect(i * barW + 0.5, mid - bh / 2, Math.max(1, barW - 1.2), bh);
+                    }
+                }
+
+                if (state.hasAudio) {
+                    wfCtx.fillStyle = '#ffffff';
+                    wfCtx.fillRect(ratio * w - 1, 0, 2.5, h);
+                }
+            }
+
+            var isSeekingWf = false;
+            function seekFromPointer(ev) {
+                if (!state.hasAudio || state.isExporting) return;
+                var rect = wfWrap.getBoundingClientRect();
+                var cx = ev.touches && ev.touches[0] ? ev.touches[0].clientX : ev.clientX;
+                var ratio = Math.max(0, Math.min(1, (cx - rect.left) / Math.max(1, rect.width)));
+                seekTo(ratio * state.duration);
+            }
+
+            on(wfWrap, 'mousedown', function (e) { isSeekingWf = true; seekFromPointer(e); });
+            on(window, 'mousemove', function (e) { if (isSeekingWf) seekFromPointer(e); });
+            on(window, 'mouseup', function () { isSeekingWf = false; });
+            on(wfWrap, 'touchstart', function (e) { isSeekingWf = true; seekFromPointer(e); }, { passive: true });
+            on(window, 'touchmove', function (e) { if (isSeekingWf) seekFromPointer(e); }, { passive: true });
+            on(window, 'touchend', function () { isSeekingWf = false; });
+
+            on($('btnPlay'), 'click', function () {
+                if (state.isPlaying) pauseAudio();
+                else playAudio();
+            });
+            on($('btnRewind3'), 'click', function () {
+                if (!state.hasAudio || state.isExporting) return;
+                seekTo(Math.max(0, getCurrentTime() - 3.0));
+            });
+
+            var speedBtns = document.querySelectorAll('.speed-btn');
+            for (var sb = 0; sb < speedBtns.length; sb++) {
+                (function (btn) {
+                    on(btn, 'click', function () {
+                        var rate = parseFloat(btn.getAttribute('data-speed')) || 1.0;
+                        state.playbackRate = rate;
+                        audioEl.playbackRate = rate;
+                        for (var k = 0; k < speedBtns.length; k++) {
+                            speedBtns[k].classList.toggle('active', speedBtns[k] === btn);
+                        }
+                    });
+                })(speedBtns[sb]);
+            }
+
+            // -----------------------------------------------------------------
+            // 7. BEAT METRICS & CANVAS RENDERER (HORIZONTAL + VERTICAL)
+            // -----------------------------------------------------------------
+            var liveMetrics = { rms: 0, bass: 0, prevBass: 0, beat: 0 };
+
+            function updateMetrics(metrics, t, dt, isActive) {
+                if (isActive && state.envelopeRms && state.envelopeBass) {
+                    var pos = Math.max(0, t / ENVELOPE_STEP);
+                    var i0 = Math.min(state.envelopeRms.length - 1, Math.floor(pos));
+                    var i1 = Math.min(state.envelopeRms.length - 1, i0 + 1);
+                    var frac = pos - Math.floor(pos);
+                    var rms = state.envelopeRms[i0] * (1 - frac) + state.envelopeRms[i1] * frac;
+                    var bass = state.envelopeBass[i0] * (1 - frac) + state.envelopeBass[i1] * frac;
+                    var diff = bass - metrics.prevBass;
+                    metrics.rms = rms;
+                    metrics.bass = bass;
+                    if (diff > 0.06 && bass > 0.34) {
+                        metrics.beat = Math.min(1, metrics.beat + diff * 3.0);
+                    }
+                    metrics.prevBass = bass;
+                } else {
+                    metrics.rms *= 0.85;
+                    metrics.bass *= 0.85;
+                    metrics.prevBass = metrics.bass;
+                }
+                metrics.beat = Math.max(0, metrics.beat - dt * 3.5);
+            }
+
+            // Deterministic particle pool for preview + export
+            var particles = [];
+            var confettiPalette = ['#f472b6', '#38bdf8', '#fbbf24', '#a78bfa', '#ffffff'];
+            function initParticles() {
+                particles = [];
+                var seed = 1337;
+                function rand() {
+                    seed = (seed * 16807) % 2147483647;
+                    return (seed - 1) / 2147483646;
+                }
+                for (var i = 0; i < 96; i++) {
+                    particles.push({
+                        x: rand(), y: rand(),
+                        size: 0.45 + rand() * 0.85,
+                        vx: (rand() - 0.5) * 0.04,
+                        vy: 0.02 + rand() * 0.06,
+                        angle: rand() * Math.PI * 2,
+                        spin: (rand() - 0.5) * 1.6,
+                        phase: rand() * Math.PI * 2,
+                        alpha: 0.4 + rand() * 0.55,
+                        color: confettiPalette[i % confettiPalette.length]
+                    });
+                }
+            }
+            initParticles();
+
+            function drawEffects(w, h, t, dt, st, metrics) {
+                if (st.preset === 'simple') return;
+                var accent = st.accentColor || '#a855f7';
+                var beatMult = st.beatIntensity / 100;
+                var speedMult = st.fxSpeed;
+                var count = Math.max(0, Math.min(particles.length, Math.round(48 * (st.particleAmount / 100))));
+                var effDt = dt * speedMult;
+                var effT = t * speedMult;
+                var boost = 1 + metrics.beat * 1.5 * beatMult;
+
+                if (st.preset === 'gothic') {
+                    var vigAlpha = Math.min(0.92, 0.42 + metrics.bass * 0.25 * beatMult);
+                    var vig = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, Math.max(w, h) * 0.72);
+                    vig.addColorStop(0, 'rgba(0,0,0,0)');
+                    vig.addColorStop(1, 'rgba(5,4,10,' + vigAlpha.toFixed(2) + ')');
+                    ctx.fillStyle = vig;
+                    ctx.fillRect(0, 0, w, h);
+
+                    if (metrics.beat > 0.2 && beatMult > 0) {
+                        ctx.fillStyle = hexToRgba(accent, Math.min(0.28, metrics.beat * 0.11 * beatMult));
+                        ctx.fillRect(0, 0, w, h);
+                    }
+
+                    for (var i = 0; i < count; i++) {
+                        var p = particles[i];
+                        if (i % 2 === 0) {
+                            p.y += p.vy * effDt * boost * 0.75;
+                            p.x += (p.vx + Math.sin(effT * 1.4 + p.phase) * 0.02) * effDt;
+                            p.angle += p.spin * effDt;
+                            if (p.y > 1.08) { p.y = -0.08; p.x = (p.x + 0.37) % 1; }
+                            ctx.save();
+                            ctx.translate(p.x * w, p.y * h);
+                            ctx.rotate(p.angle);
+                            ctx.globalAlpha = p.alpha * 0.78;
+                            var sz = 14 * p.size;
+                            ctx.fillStyle = '#090910';
+                            ctx.strokeStyle = hexToRgba(accent, 0.55);
+                            ctx.lineWidth = 1.2;
+                            ctx.beginPath();
+                            ctx.moveTo(-sz, 0);
+                            ctx.quadraticCurveTo(0, -sz * 0.42, sz, 0);
+                            ctx.quadraticCurveTo(0, sz * 0.36, -sz, 0);
+                            ctx.fill();
+                            ctx.stroke();
+                            ctx.restore();
+                        } else {
+                            p.y -= p.vy * effDt * boost * 0.9;
+                            p.x += p.vx * effDt;
+                            p.angle += p.spin * 1.6 * effDt;
+                            if (p.y < -0.08) { p.y = 1.08; p.x = (p.x + 0.61) % 1; }
+                            ctx.save();
+                            ctx.translate(p.x * w, p.y * h);
+                            ctx.rotate(p.angle);
+                            ctx.globalAlpha = Math.min(1, p.alpha * (0.55 + metrics.beat * 0.45 * beatMult));
+                            ctx.fillStyle = accent;
+                            ctx.shadowColor = accent;
+                            ctx.shadowBlur = 12 * Math.max(0.4, beatMult);
+                            var sh = 5.5 * p.size;
+                            ctx.beginPath();
+                            ctx.moveTo(0, -sh * 1.5);
+                            ctx.lineTo(sh * 0.8, 0);
+                            ctx.lineTo(0, sh * 1.2);
+                            ctx.lineTo(-sh * 0.7, -sh * 0.2);
+                            ctx.closePath();
+                            ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+                } else if (st.preset === 'pop') {
+                    if (metrics.beat > 0.1 && beatMult > 0) {
+                        ctx.fillStyle = hexToRgba(accent, Math.min(0.28, metrics.beat * 0.12 * beatMult));
+                        ctx.fillRect(0, 0, w, h);
+                    }
+                    for (var j = 0; j < count; j++) {
+                        var pp = particles[j];
+                        pp.y -= pp.vy * effDt * boost * 0.65;
+                        pp.x += Math.sin(effT * 1.2 + pp.phase) * 0.015 * effDt;
+                        pp.angle += pp.spin * effDt;
+                        if (pp.y < -0.08) { pp.y = 1.08; pp.x = (pp.x + 0.43) % 1; }
+                        var tw = 0.45 + 0.55 * Math.abs(Math.sin(effT * 3.2 + pp.phase));
+                        ctx.save();
+                        ctx.translate(pp.x * w, pp.y * h);
+                        ctx.globalAlpha = pp.alpha * tw;
+                        if (j % 3 === 0) {
+                            var sr = (7 + metrics.beat * 5 * beatMult) * pp.size;
+                            ctx.fillStyle = '#ffffff';
+                            ctx.shadowColor = accent;
+                            ctx.shadowBlur = 14 * Math.max(0.4, beatMult);
+                            ctx.beginPath();
+                            ctx.moveTo(0, -sr);
+                            ctx.quadraticCurveTo(0, 0, sr, 0);
+                            ctx.quadraticCurveTo(0, 0, 0, sr);
+                            ctx.quadraticCurveTo(0, 0, -sr, 0);
+                            ctx.quadraticCurveTo(0, 0, 0, -sr);
+                            ctx.fill();
+                        } else if (j % 3 === 1) {
+                            var br = (10 + metrics.bass * 12 * beatMult) * pp.size;
+                            var bg = ctx.createRadialGradient(0, 0, 0, 0, 0, br);
+                            bg.addColorStop(0, hexToRgba(accent, 0.7));
+                            bg.addColorStop(1, hexToRgba(accent, 0));
+                            ctx.fillStyle = bg;
+                            ctx.beginPath();
+                            ctx.arc(0, 0, br, 0, Math.PI * 2);
+                            ctx.fill();
+                        } else {
+                            ctx.rotate(pp.angle);
+                            ctx.fillStyle = pp.color;
+                            ctx.fillRect(-4 * pp.size, -2.5 * pp.size, 8 * pp.size, 5 * pp.size);
+                        }
+                        ctx.restore();
+                    }
+                } else if (st.preset === 'ballad') {
+                    var ag = ctx.createRadialGradient(w * 0.5, h * 0.85, 10, w * 0.5, h * 0.85, Math.max(w, h) * 0.65);
+                    ag.addColorStop(0, hexToRgba(accent, Math.min(0.45, 0.14 + metrics.rms * 0.14 * beatMult)));
+                    ag.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = ag;
+                    ctx.fillRect(0, 0, w, h);
+
+                    for (var k = 0; k < count; k++) {
+                        var bp = particles[k];
+                        bp.y += bp.vy * effDt * 0.45;
+                        bp.x += Math.sin(effT * 0.9 + bp.phase) * 0.025 * effDt;
+                        bp.angle += bp.spin * 0.5 * effDt;
+                        if (bp.y > 1.06) { bp.y = -0.06; bp.x = (bp.x + 0.29) % 1; }
+                        ctx.save();
+                        ctx.translate(bp.x * w, bp.y * h);
+                        ctx.rotate(bp.angle);
+                        ctx.globalAlpha = bp.alpha * 0.75;
+                        var pr = 5.5 * bp.size;
+                        ctx.fillStyle = k % 4 === 0 ? hexToRgba(accent, 0.85) : 'rgba(255,255,255,0.88)';
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, pr, pr * 0.6, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.restore();
+                    }
+                } else if (st.preset === 'rock') {
+                    ctx.save();
+                    var streaks = Math.max(0, Math.round(10 * (st.particleAmount / 100)));
+                    for (var m = 0; m < streaks; m++) {
+                        var sy = ((m * 0.11 + effT * 0.25) % 1) * h;
+                        ctx.fillStyle = hexToRgba(accent, Math.min(0.75, 0.08 + metrics.beat * 0.35 * beatMult));
+                        ctx.fillRect(0, sy, w, 1.5 + metrics.beat * 2 * beatMult);
+                    }
+                    if (metrics.beat > 0.32 && beatMult > 0.05) {
+                        var slices = Math.max(1, Math.round(4 * Math.min(2, st.particleAmount / 100)));
+                        for (var sl = 0; sl < slices; sl++) {
+                            var ry = ((Math.sin(effT * 43 + sl * 17) * 0.5 + 0.5)) * h;
+                            ctx.fillStyle = hexToRgba(accent, Math.min(0.45, 0.22 * beatMult));
+                            ctx.fillRect(0, ry, w, 8 + (sl % 3) * 6);
+                        }
+                    }
+                    if (beatMult > 0.05) {
+                        var bars = 28;
+                        var bw = (w * 0.8) / bars;
+                        var sx = w * 0.1;
+                        ctx.globalAlpha = Math.min(0.85, 0.42 * beatMult);
+                        for (var b = 0; b < bars; b++) {
+                            var wave = 0.3 + 0.7 * Math.abs(Math.sin(b * 0.6 + effT * 8));
+                            var bh = Math.max(3, (metrics.rms * 0.6 + metrics.beat * 0.6) * wave * h * 0.11 * Math.min(1.6, beatMult));
+                            ctx.fillStyle = b % 2 === 0 ? accent : '#ffffff';
+                            ctx.fillRect(sx + b * bw + 2, h - bh - 12, Math.max(2, bw - 4), bh);
+                        }
+                    }
+                    ctx.restore();
+                }
+            }
+
+            // Typography helpers (Horizontal & Vertical)
+            var VERTICAL_ROTATE = {
+                'ー': 1, '〜': 1, '～': 1, '「': 1, '」': 1, '『': 1, '』': 1,
+                '（': 1, '）': 1, '(': 1, ')': 1, '[': 1, ']': 1, '【': 1, '】': 1,
+                '…': 1, '―': 1, '-': 1, '−': 1, '—': 1, '=': 1, '＝': 1
+            };
+            var VERTICAL_PUNCT = { '、': 1, '。': 1, '，': 1, '．': 1 };
+
+            function measureHorizontal(text, sp) {
+                if (!text) return 0;
+                if (!sp || Math.abs(sp) < 0.01) return ctx.measureText(text).width;
+                var arr = Array.from(text);
+                var total = 0;
+                for (var i = 0; i < arr.length; i++) total += ctx.measureText(arr[i]).width;
+                return Math.max(0, total + sp * Math.max(0, arr.length - 1));
+            }
+
+            function wrapHorizontal(text, maxW, sp) {
+                if (!text) return [];
+                if (measureHorizontal(text, sp) <= maxW) return [text];
+                var arr = Array.from(text);
+                var lines = [];
+                var cur = '';
+                for (var i = 0; i < arr.length; i++) {
+                    if (measureHorizontal(cur + arr[i], sp) > maxW && cur) {
+                        lines.push(cur);
+                        cur = arr[i];
+                    } else {
+                        cur += arr[i];
+                    }
+                }
+                if (cur) lines.push(cur);
+                return lines;
+            }
+
+            function drawHorizontalText(text, w, h, fontPx, sp, st, alpha, offsetY, scale, shouldStroke) {
+                var isPortrait = st.aspect === '9:16';
+                var maxW = w * (isPortrait ? 0.86 : 0.88);
+                var lines = wrapHorizontal(text, maxW, sp);
+                var lh = fontPx * 1.38;
+
+                var posY = h * 0.82;
+                if (st.horizontalPos === 'top') posY = h * 0.16;
+                else if (st.horizontalPos === 'center') posY = h * 0.50;
+
+                ctx.save();
+                ctx.translate(w / 2, posY + offsetY);
+                ctx.scale(scale, scale);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = alpha;
+
+                var startY = -((lines.length - 1) * lh) / 2;
+                for (var li = 0; li < lines.length; li++) {
+                    var line = lines[li];
+                    var ly = startY + li * lh;
+                    if (!sp || Math.abs(sp) < 0.01) {
+                        if (shouldStroke) ctx.strokeText(line, 0, ly);
+                        ctx.fillText(line, 0, ly);
+                    } else {
+                        var chars = Array.from(line);
+                        var totalW = measureHorizontal(line, sp);
+                        var cx = -totalW / 2;
+                        ctx.save();
+                        ctx.textAlign = 'left';
+                        for (var ci = 0; ci < chars.length; ci++) {
+                            if (shouldStroke) ctx.strokeText(chars[ci], cx, ly);
+                            ctx.fillText(chars[ci], cx, ly);
+                            cx += ctx.measureText(chars[ci]).width + sp;
+                        }
+                        ctx.restore();
+                    }
+                }
+                ctx.restore();
+            }
+
+            function drawVerticalText(fullText, visibleCount, w, h, baseFontPx, sp, st, orderNum, alpha, offsetY, scale, shouldStroke) {
+                var chars = Array.from(fullText);
+                if (chars.length === 0) return;
+
+                var isPortrait = st.aspect === '9:16';
+                var maxColH = h * 0.78;
+                var fontPx = baseFontPx;
+                var stepY = Math.max(fontPx * 0.75, fontPx + sp);
+                var maxPerCol = Math.max(4, Math.floor(maxColH / stepY));
+                var columns = [];
+
+                if (chars.length <= maxPerCol) {
+                    columns.push(chars);
+                } else {
+                    var numCols = Math.ceil(chars.length / maxPerCol);
+                    if (numCols > 3) {
+                        var shrink = Math.max(0.62, (maxColH * 2.8) / (chars.length * stepY));
+                        fontPx = Math.max(18, Math.round(baseFontPx * shrink));
+                        stepY = Math.max(fontPx * 0.75, fontPx + sp * shrink);
+                        maxPerCol = Math.max(4, Math.floor(maxColH / stepY));
+                        numCols = Math.ceil(chars.length / maxPerCol);
+                    }
+                    var perCol = Math.ceil(chars.length / numCols);
+                    for (var c = 0; c < chars.length; c += perCol) {
+                        columns.push(chars.slice(c, c + perCol));
+                    }
+                }
+
+                var fm = FONT_META[st.font] || FONT_META['Shippori Mincho'];
+                ctx.font = fm.weight + ' ' + fontPx + 'px "' + st.font + '", ' + fm.fallback;
+                var glowMult = st.glowStrength / 100;
+                ctx.lineWidth = shouldStroke ? Math.max(1.5, fontPx * 0.10 * glowMult) : 0;
+
+                var colGap = fontPx * 1.42;
+                var totalColsW = (columns.length - 1) * colGap;
+                var maxColLen = 0;
+                for (var ci = 0; ci < columns.length; ci++) {
+                    if (columns[ci].length > maxColLen) maxColLen = columns[ci].length;
+                }
+                var blockH = Math.max(fontPx, (maxColLen - 1) * stepY + fontPx);
+
+                var resolvedPos = st.verticalPos;
+                if (resolvedPos === 'alternate') {
+                    resolvedPos = (orderNum % 2 === 1) ? 'right' : 'left';
+                }
+
+                var edgeMargin = Math.max(fontPx * 1.15, w * (isPortrait ? 0.14 : 0.10));
+                var groupX = w / 2;
+                if (resolvedPos === 'right') groupX = w - edgeMargin - totalColsW / 2;
+                else if (resolvedPos === 'left') groupX = edgeMargin + totalColsW / 2;
+
+                ctx.save();
+                ctx.translate(groupX, h * 0.50 + offsetY);
+                ctx.scale(scale, scale);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = alpha;
+
+                var rightmostX = totalColsW / 2;
+                var topY = -blockH / 2 + fontPx * 0.5;
+                var drawn = 0;
+
+                for (var colIdx = 0; colIdx < columns.length; colIdx++) {
+                    var colChars = columns[colIdx];
+                    var colX = rightmostX - colIdx * colGap;
+                    for (var rowIdx = 0; rowIdx < colChars.length; rowIdx++) {
+                        if (drawn >= visibleCount) break;
+                        drawn++;
+                        var ch = colChars[rowIdx];
+                        if (ch === ' ' || ch === '　') continue;
+
+                        ctx.save();
+                        ctx.translate(colX, topY + rowIdx * stepY);
+                        if (VERTICAL_ROTATE[ch]) {
+                            ctx.rotate(Math.PI / 2);
+                        } else if (VERTICAL_PUNCT[ch]) {
+                            ctx.translate(fontPx * 0.30, -fontPx * 0.30);
+                        }
+                        if (shouldStroke) ctx.strokeText(ch, 0, 0);
+                        ctx.fillText(ch, 0, 0);
+                        ctx.restore();
+                    }
+                }
+                ctx.restore();
+            }
+
+            function getOrderNum(lyrics, idx) {
+                var n = 0;
+                for (var i = 0; i <= idx && i < lyrics.length; i++) {
+                    if (!isRowBreak(lyrics[i])) n++;
+                }
+                return Math.max(1, n);
+            }
+
+            function findActiveLyric(t) {
+                var lyrics = currentProject().lyrics;
+                if (state.activeTapIdx >= 0 && lyrics[state.activeTapIdx]) {
+                    var tr = lyrics[state.activeTapIdx];
+                    if (!isRowBreak(tr) && isRowSynced(tr) && t >= tr.start - 0.04 && t <= tr.end) {
+                        return state.activeTapIdx;
+                    }
+                }
+                var best = -1;
+                var bestStart = -1;
+                for (var i = 0; i < lyrics.length; i++) {
+                    var r = lyrics[i];
+                    if (isRowBreak(r) || !isRowSynced(r)) continue;
+                    if (t >= r.start && t <= r.end && r.start >= bestStart) {
+                        bestStart = r.start;
+                        best = i;
+                    }
+                }
+                return best;
+            }
+
+            function renderFrame(t, dt, activeIdx, metrics, isOffline) {
+                var proj = currentProject();
+                var st = proj.style;
+                var w = mvCanvas.width, h = mvCanvas.height;
+                var isPortrait = st.aspect === '9:16';
+
+                ctx.fillStyle = '#0a0c13';
+                ctx.fillRect(0, 0, w, h);
+
+                // 1. Background Image
+                if (state.bgImage) {
+                    var img = state.bgImage;
+                    var ir = img.width / img.height;
+                    var cr = w / h;
+                    var dw = ir > cr ? h * ir : w;
+                    var dh = ir > cr ? h : w / ir;
+
+                    var beatMult = st.beatIntensity / 100;
+                    var zoom = 1.02 + metrics.bass * (st.preset === 'simple' ? 0.018 : 0.035) * beatMult;
+                    var shakeAmp = st.preset === 'simple' ? 0 : (st.preset === 'rock' ? 13 : 6.5) * metrics.beat * beatMult;
+                    var sx = Math.sin(t * 71) * shakeAmp * 0.5;
+                    var sy = Math.cos(t * 59) * shakeAmp * 0.5;
+
+                    ctx.save();
+                    ctx.translate(w / 2 + sx, h / 2 + sy);
+                    ctx.scale(zoom, zoom);
+                    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+                    ctx.restore();
+                } else if (!isOffline) {
+                    ctx.save();
+                    ctx.fillStyle = '#131622';
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.strokeStyle = '#272c40';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(24, 24, w - 48, h - 48);
+                    if (window.__nmvActiveTab !== 'style') {
+                        ctx.fillStyle = '#7f87a3';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.font = '700 ' + (isPortrait ? 21 : 24) + 'px "Noto Sans JP", sans-serif';
+                        ctx.fillText('① 素材・歌詞 から背景画像と音源を選択してください', w / 2, h / 2);
+                    }
+                    ctx.restore();
+                }
+
+                // 2. Background Dimness
+                var dimAlpha = st.dimness / 100;
+                if (dimAlpha > 0.005) {
+                    ctx.fillStyle = 'rgba(8, 9, 14, ' + dimAlpha.toFixed(2) + ')';
+                    ctx.fillRect(0, 0, w, h);
+                }
+
+                // 3. Visual Effects
+                drawEffects(w, h, t, dt, st, metrics);
+
+                // 4. Lyric Text (Live Preview in Tab 2 when paused or no active lyric)
+                var textToDraw = '';
+                var orderNum = 1;
+                var elapsed = 1.0;
+                var remaining = 5.0;
+
+                if (activeIdx >= 0 && proj.lyrics[activeIdx] && !isRowBreak(proj.lyrics[activeIdx])) {
+                    var row = proj.lyrics[activeIdx];
+                    textToDraw = row.text;
+                    orderNum = getOrderNum(proj.lyrics, activeIdx);
+                    elapsed = Math.max(0.001, t - row.start);
+                    remaining = Math.max(0.001, row.end - t);
+                } else if (!isOffline && window.__nmvActiveTab === 'style') {
+                    var first = null;
+                    for (var fi = 0; fi < proj.lyrics.length; fi++) {
+                        if (!isRowBreak(proj.lyrics[fi])) { first = proj.lyrics[fi].text; break; }
+                    }
+                    textToDraw = first || '歌詞プレビュー表示中 / Sample Lyric';
+                    orderNum = 1;
+                }
+
+                if (textToDraw) {
+                    var fadeOut = Math.min(1, remaining / 0.18);
+                    var baseSize = st.textSize === 'small' ? 0.80 : (st.textSize === 'large' ? 1.24 : 1.0);
+                    var fontPx = Math.round((isPortrait ? 34 : 44) * baseSize * (st.sizeFine / 100));
+                    var fm = FONT_META[st.font] || FONT_META['Shippori Mincho'];
+                    ctx.font = fm.weight + ' ' + fontPx + 'px "' + st.font + '", ' + fm.fallback;
+
+                    var alpha = fadeOut;
+                    var offsetY = 0;
+                    var scale = 1.0;
+                    var charsAll = Array.from(textToDraw);
+                    var visibleCount = charsAll.length;
+
+                    if (st.textAnim === 'fade') {
+                        alpha *= Math.min(1, elapsed / 0.25);
+                    } else if (st.textAnim === 'slide') {
+                        var p = Math.min(1, elapsed / 0.25);
+                        var ease = 1 - Math.pow(1 - p, 3);
+                        alpha *= p;
+                        offsetY = (1 - ease) * (st.writingMode === 'vertical' ? -24 : 24);
+                    } else if (st.textAnim === 'scale') {
+                        var spA = Math.min(1, elapsed / 0.20);
+                        var sE = 1 - Math.pow(1 - spA, 3);
+                        alpha *= Math.min(1, elapsed / 0.10);
+                        scale = (0.76 + 0.24 * sE) + metrics.beat * 0.05 * (st.beatIntensity / 100);
+                    } else if (st.textAnim === 'typewriter') {
+                        var durType = Math.min(1.4, Math.max(0.35, charsAll.length * 0.055));
+                        visibleCount = Math.max(1, Math.min(charsAll.length, Math.ceil((elapsed / durType) * charsAll.length)));
+                    }
+
+                    var glowMult = st.glowStrength / 100;
+                    var shouldStroke = glowMult > 0.02;
+                    ctx.lineWidth = shouldStroke ? Math.max(1.5, fontPx * 0.10 * glowMult) : 0;
+                    ctx.strokeStyle = 'rgba(10, 11, 16, 0.92)';
+                    ctx.shadowColor = hexToRgba(st.accentColor, Math.min(1, 0.85 * glowMult));
+                    ctx.shadowBlur = 22 * glowMult;
+                    ctx.fillStyle = '#ffffff';
+
+                    var clampedAlpha = Math.max(0, Math.min(1, alpha));
+                    if (st.writingMode === 'vertical') {
+                        drawVerticalText(textToDraw, visibleCount, w, h, fontPx, st.letterSpacing, st, orderNum, clampedAlpha, offsetY, scale, shouldStroke);
+                    } else {
+                        drawHorizontalText(charsAll.slice(0, visibleCount).join(''), w, h, fontPx, st.letterSpacing, st, clampedAlpha, offsetY, scale, shouldStroke);
+                    }
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // 8. UI SYNC FUNCTIONS
+            // -----------------------------------------------------------------
+            function applyAspect(aspect) {
+                if (aspect === '9:16') {
+                    mvCanvas.width = 720; mvCanvas.height = 1280;
+                    $('badgeAspect').textContent = '9:16 (720×1280)';
+                } else {
+                    mvCanvas.width = 1280; mvCanvas.height = 720;
+                    $('badgeAspect').textContent = '16:9 (1280×720)';
+                }
+            }
+
+            function syncProjectUI() {
+                var proj = currentProject();
+                var sel = $('projectSelect');
+                sel.innerHTML = '';
+                state.projects.forEach(function (p) {
+                    var op = document.createElement('option');
+                    op.value = p.id;
+                    op.textContent = p.name;
+                    sel.appendChild(op);
+                });
+                sel.value = proj.id;
+                $('projectNameInput').value = proj.name;
+            }
+
+            function syncLyricsUI() {
+                var lyrics = currentProject().lyrics;
+                $('lyricsTextarea').value = lyrics.map(function (l) {
+                    return isRowBreak(l) ? '' : l.text;
+                }).join('\n');
+                var textCount = lyrics.filter(function (l) { return !isRowBreak(l); }).length;
+                var brkCount = lyrics.length - textCount;
+                $('lyricsCountBadge').textContent = textCount + ' 行' + (brkCount > 0 ? '（間奏 ' + brkCount + '）' : '');
+            }
+
+            function syncStyleUI() {
+                var st = currentProject().style;
+                document.documentElement.style.setProperty('--accent', st.accentColor);
+                document.documentElement.style.setProperty('--accent-soft', hexToRgba(st.accentColor, 0.18));
+                applyAspect(st.aspect);
+
+                document.querySelectorAll('[data-aspect]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-aspect') === st.aspect);
+                });
+                document.querySelectorAll('[data-preset]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-preset') === st.preset);
+                });
+                document.querySelectorAll('.swatch-btn').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-color').toLowerCase() === st.accentColor.toLowerCase());
+                });
+                $('accentColorInput').value = st.accentColor;
+
+                $('fontSelect').value = st.font;
+                var fm = FONT_META[st.font] || FONT_META['Shippori Mincho'];
+                $('fontPreviewStrip').style.fontFamily = '"' + st.font + '", ' + fm.fallback;
+                $('fontPreviewStrip').style.fontWeight = fm.weight;
+                $('fontPreviewStrip').style.letterSpacing = st.letterSpacing + 'px';
+
+                document.querySelectorAll('[data-anim]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-anim') === st.textAnim);
+                });
+                document.querySelectorAll('[data-size]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-size') === st.textSize);
+                });
+                document.querySelectorAll('[data-dir]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-dir') === st.writingMode);
+                });
+
+                var isVert = st.writingMode === 'vertical';
+                $('posGroupHorizontal').classList.toggle('hidden', isVert);
+                $('posGroupVertical').classList.toggle('hidden', !isVert);
+                $('posHintText').textContent = isVert
+                    ? '縦書き配置（左右交互は奇数行が右・偶数行が左）'
+                    : '横書き配置（上部・中央・下部）';
+
+                document.querySelectorAll('[data-hpos]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-hpos') === st.horizontalPos);
+                });
+                document.querySelectorAll('[data-vpos]').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-vpos') === st.verticalPos);
+                });
+
+                // 7 Sliders
+                $('sliderParticleAmount').value = String(st.particleAmount);
+                $('valParticleAmount').textContent = Math.round(st.particleAmount) + '%';
+
+                $('sliderFxSpeed').value = String(st.fxSpeed);
+                $('valFxSpeed').textContent = Number(st.fxSpeed).toFixed(1) + 'x';
+
+                $('sliderBeatIntensity').value = String(st.beatIntensity);
+                $('valBeatIntensity').textContent = Math.round(st.beatIntensity) + '%';
+
+                $('sliderDimness').value = String(st.dimness);
+                $('valDimness').textContent = Math.round(st.dimness) + '%';
+
+                $('sliderGlow').value = String(st.glowStrength);
+                $('valGlow').textContent = Math.round(st.glowStrength) + '%';
+
+                $('sliderLetterSpacing').value = String(st.letterSpacing);
+                $('valLetterSpacing').textContent = st.letterSpacing + 'px';
+
+                $('sliderSizeFine').value = String(st.sizeFine);
+                $('valSizeFine').textContent = Math.round(st.sizeFine) + '%';
+            }
+
+            function syncTapUI() {
+                var lyrics = currentProject().lyrics;
+                var ready = state.hasAudio && lyrics.length > 0;
+                $('tapEmptyBanner').classList.toggle('hidden', ready);
+                $('tapWorkspace').classList.toggle('hidden', !ready);
+                if (ready) $('tapWorkspace').classList.add('flex');
+                if (!ready) return;
+
+                state.tapIndex = Math.max(0, Math.min(lyrics.length, state.tapIndex));
+
+                var nonBreaks = lyrics.filter(function (r) { return !isRowBreak(r); });
+                var syncedCnt = nonBreaks.filter(isRowSynced).length;
+                var unsetCnt = nonBreaks.length - syncedCnt;
+                $('tapProgressBadge').textContent = '済 ' + syncedCnt + ' / ' + nonBreaks.length + '（未設定 ' + unsetCnt + '）';
+
+                var prevIdx = state.tapIndex - 1;
+                if (prevIdx >= 0 && lyrics[prevIdx]) {
+                    var pr = lyrics[prevIdx];
+                    $('tapPrevText').textContent = '#' + (prevIdx + 1) + ' ' + rowLabel(pr);
+                    $('tapPrevTime').textContent = isRowSynced(pr) ? formatMMSSd(pr.start) : '未設定';
+                    $('tapUndoSnippet').textContent = '『' + truncate(rowLabel(pr), 10) + '』へ戻す';
+                } else {
+                    $('tapPrevText').textContent = '（まだ打っていません）';
+                    $('tapPrevTime').textContent = '--:--.-';
+                    $('tapUndoSnippet').textContent = '先頭行です';
+                }
+
+                if (state.tapIndex >= lyrics.length) {
+                    $('tapNextLabel').textContent = '完了 (' + lyrics.length + ' / ' + lyrics.length + ')';
+                    $('tapNextText').textContent = '全行のタップ同期が完了しました！';
+                    $('tapAfterText').textContent = '「④ 微調整」で確認・調整できます';
+                } else {
+                    $('tapNextLabel').textContent = '次に打つ歌詞 ' + (state.tapIndex + 1) + ' / ' + lyrics.length;
+                    $('tapNextText').textContent = rowLabel(lyrics[state.tapIndex]);
+                    var after = lyrics[state.tapIndex + 1];
+                    $('tapAfterText').textContent = after ? ('その次: ' + rowLabel(after)) : 'その次: （最終行）';
+                }
+
+                var jumpSel = $('tapJumpSelect');
+                jumpSel.innerHTML = '';
+                lyrics.forEach(function (r, idx) {
+                    var op = document.createElement('option');
+                    op.value = String(idx);
+                    var stStr = isRowBreak(r) ? '間奏' : (isRowSynced(r) ? formatMMSSd(r.start) : '未設定');
+                    op.textContent = '#' + (idx + 1) + ' [' + stStr + '] ' + truncate(rowLabel(r), 14);
+                    jumpSel.appendChild(op);
+                });
+                jumpSel.value = String(Math.min(state.tapIndex, lyrics.length - 1));
+            }
+
+            function syncEditUI() {
+                var lyrics = currentProject().lyrics;
+                var hasL = lyrics.length > 0;
+                $('editEmptyBanner').classList.toggle('hidden', hasL);
+                $('editWorkspace').classList.toggle('hidden', !hasL);
+                if (hasL) $('editWorkspace').classList.add('flex');
+                if (!hasL) return;
+
+                state.editIndex = Math.max(0, Math.min(lyrics.length - 1, state.editIndex));
+                var row = lyrics[state.editIndex];
+                var synced = isRowSynced(row);
+                var brk = isRowBreak(row);
+
+                $('editRowLabel').textContent = (state.editIndex + 1) + ' / ' + lyrics.length;
+                var b = $('editStatusBadge');
+                if (brk) {
+                    b.textContent = '間奏';
+                    b.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-200 border border-amber-500/40';
+                } else if (synced) {
+                    b.textContent = '済';
+                    b.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                } else {
+                    b.textContent = '未設定';
+                    b.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1b1f2e] text-[#7f87a3] border border-[#3c435e]';
+                }
+
+                $('editTextInput').value = row.text || '';
+                $('editStartNum').value = typeof row.start === 'number' ? row.start.toFixed(2) : '';
+                $('editEndNum').value = typeof row.end === 'number' ? row.end.toFixed(2) : '';
+
+                var nonBreaks = lyrics.filter(function (r) { return !isRowBreak(r); });
+                var syncedCnt = nonBreaks.filter(isRowSynced).length;
+                $('editSummaryCount').textContent = '済 ' + syncedCnt + ' / ' + nonBreaks.length;
+
+                var listEl = $('fullLyricList');
+                listEl.innerHTML = '';
+                lyrics.forEach(function (r, idx) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    var activeCls = idx === state.editIndex ? ' border-purple-400 bg-purple-500/20' : ' border-transparent bg-[#141722]';
+                    btn.className = 'w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border text-left text-xs text-white transition' + activeCls;
+
+                    var isB = isRowBreak(r);
+                    var isS = isRowSynced(r);
+                    var badgeCls = isB
+                        ? 'bg-amber-500/20 text-amber-200 border-amber-500/40'
+                        : (isS ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-[#1b1f2e] text-[#7f87a3] border-[#3c435e]');
+
+                    var idxSpan = document.createElement('span');
+                    idxSpan.className = 'font-mono text-[10px] text-[#7f87a3] shrink-0';
+                    idxSpan.textContent = '#' + (idx + 1);
+
+                    var stSpan = document.createElement('span');
+                    stSpan.className = 'px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold shrink-0 ' + badgeCls;
+                    stSpan.textContent = isB ? '間奏' : (isS ? formatMMSSd(r.start) : '未設定');
+
+                    var txtSpan = document.createElement('span');
+                    txtSpan.className = 'flex-1 truncate';
+                    txtSpan.textContent = rowLabel(r);
+
+                    btn.appendChild(idxSpan);
+                    btn.appendChild(stSpan);
+                    btn.appendChild(txtSpan);
+
+                    on(btn, 'click', function () {
+                        state.editIndex = idx;
+                        syncEditUI();
+                        if (isRowSynced(r) && state.hasAudio) {
+                            seekTo(Math.max(0, r.start - (state.rowLoop ? 1.2 : 0.1)));
+                        }
+                    });
+                    listEl.appendChild(btn);
+                });
+            }
+
+            function syncAllUI() {
+                syncProjectUI();
+                syncLyricsUI();
+                syncStyleUI();
+                syncTapUI();
+                syncEditUI();
+            }
+
+            on(window, 'nmv:tabchange', function (e) {
+                var tab = e && e.detail ? e.detail.tab : '';
+                if (tab === 'tap') syncTapUI();
+                if (tab === 'edit') syncEditUI();
+            });
+
+            // -----------------------------------------------------------------
+            // 9. TAB 1 EVENTS (LYRICS & PROJECTS)
+            // -----------------------------------------------------------------
+            on($('btnApplyLyrics'), 'click', function () {
+                var treatBlank = $('chkBlankAsBreak').checked;
+                var rawLines = $('lyricsTextarea').value.split(/\r?\n/).map(function (s) { return s.trim(); });
+                var normalized = [];
+                for (var i = 0; i < rawLines.length; i++) {
+                    var line = rawLines[i];
+                    if (line.length === 0) {
+                        if (treatBlank && normalized.length > 0 && normalized[normalized.length - 1] !== '') {
+                            normalized.push('');
+                        }
+                    } else {
+                        normalized.push(line);
+                    }
+                }
+                while (normalized.length > 0 && normalized[normalized.length - 1] === '') {
+                    normalized.pop();
+                }
+
+                var proj = currentProject();
+                var oldLyrics = proj.lyrics;
+                proj.lyrics = normalized.map(function (text, idx) {
+                    var isBrk = text.length === 0;
+                    var prev = oldLyrics[idx];
+                    if (prev) {
+                        return {
+                            text: text,
+                            isBreak: isBrk,
+                            start: isBrk ? null : prev.start,
+                            end: isBrk ? null : prev.end
+                        };
+                    }
+                    return { text: text, isBreak: isBrk, start: null, end: null };
+                });
+
+                state.tapIndex = Math.min(state.tapIndex, proj.lyrics.length);
+                state.editIndex = Math.min(state.editIndex, Math.max(0, proj.lyrics.length - 1));
+                saveProjects();
+                syncLyricsUI();
+                syncTapUI();
+                syncEditUI();
+                showToast('歌詞を反映しました（既存タイミング保持）', 'success');
+            });
+
+            function switchProject(id) {
+                if (state.isPlaying) pauseAudio();
+                state.currentProjectId = id;
+                state.tapIndex = 0;
+                state.activeTapIdx = -1;
+                state.editIndex = 0;
+                saveProjects();
+                syncAllUI();
+                showToast('プロジェクトを切り替えました');
+            }
+
+            on($('projectSelect'), 'change', function () { switchProject($('projectSelect').value); });
+            on($('projectNameInput'), 'input', function () {
+                var p = currentProject();
+                p.name = $('projectNameInput').value.trim() || '無題のプロジェクト';
+                saveProjects();
+                var sel = $('projectSelect');
+                if (sel.options[sel.selectedIndex]) sel.options[sel.selectedIndex].textContent = p.name;
+            });
+
+            on($('btnNewProject'), 'click', async function () {
+                var name = await openDialog({
+                    title: '新規プロジェクト作成',
+                    message: '新しい曲のプロジェクト名を入力してください。',
+                    inputMode: true,
+                    defaultValue: 'マイMV ' + (state.projects.length + 1),
+                    okText: '作成'
+                });
+                if (!name) return;
+                var p = createBlankProject(name);
+                state.projects.push(p);
+                switchProject(p.id);
+                showToast('「' + name + '」を作成しました', 'success');
+            });
+
+            on($('btnDeleteProject'), 'click', async function () {
+                var p = currentProject();
+                var ok = await openDialog({
+                    title: 'プロジェクト削除',
+                    message: '「' + p.name + '」を削除しますか？この操作は取り消せません。',
+                    okText: '削除する'
+                });
+                if (!ok) return;
+                state.projects = state.projects.filter(function (x) { return x.id !== p.id; });
+                if (state.projects.length === 0) state.projects.push(createBlankProject('マイMV 1'));
+                switchProject(state.projects[0].id);
+                showToast('プロジェクトを削除しました');
+            });
+
+            on($('btnCopyJson'), 'click', function () {
+                try {
+                    var box = $('jsonBackupBox');
+                    box.value = JSON.stringify(currentProject(), null, 2);
+                    box.select();
+                    document.execCommand('copy');
+                    showToast('JSONをコピーしました', 'success');
+                } catch (e) {
+                    showToast('テキスト欄から手動でコピーしてください');
+                }
+            });
+
+            on($('btnRestoreJson'), 'click', function () {
+                try {
+                    var val = $('jsonBackupBox').value.trim();
+                    if (!val) { showToast('復元するJSONを貼り付けてください', 'error'); return; }
+                    var data = JSON.parse(val);
+                    if (!data || !Array.isArray(data.lyrics)) {
+                        showToast('JSONの形式が正しくありません', 'error');
+                        return;
+                    }
+                    var p = currentProject();
+                    if (data.name) p.name = String(data.name);
+                    p.lyrics = data.lyrics.map(function (l) {
+                        var t = String(l.text || '');
+                        return {
+                            text: t,
+                            isBreak: Boolean(l.isBreak || !t.trim()),
+                            start: typeof l.start === 'number' ? round2(l.start) : null,
+                            end: typeof l.end === 'number' ? round2(l.end) : null
+                        };
+                    });
+                    if (data.style) p.style = sanitizeStyle(data.style);
+                    saveProjects();
+                    syncAllUI();
+                    showToast('JSONから復元しました！', 'success');
+                } catch (e) {
+                    showToast('JSONの解析に失敗しました', 'error');
+                }
+            });
+
+            // -----------------------------------------------------------------
+            // 10. TAB 2 EVENTS (EASY + 7 ADVANCED SLIDERS)
+            // -----------------------------------------------------------------
+            document.querySelectorAll('[data-aspect]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.aspect = btn.getAttribute('data-aspect');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('[data-preset]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.preset = btn.getAttribute('data-preset');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('.swatch-btn').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.accentColor = btn.getAttribute('data-color');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            on($('accentColorInput'), 'input', function () {
+                currentProject().style.accentColor = $('accentColorInput').value;
+                saveProjects(); syncStyleUI();
+            });
+            on($('fontSelect'), 'change', function () {
+                currentProject().style.font = $('fontSelect').value;
+                saveProjects(); syncStyleUI();
+            });
+            document.querySelectorAll('[data-anim]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.textAnim = btn.getAttribute('data-anim');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('[data-size]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.textSize = btn.getAttribute('data-size');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('[data-dir]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.writingMode = btn.getAttribute('data-dir');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('[data-hpos]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.horizontalPos = btn.getAttribute('data-hpos');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+            document.querySelectorAll('[data-vpos]').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    currentProject().style.verticalPos = btn.getAttribute('data-vpos');
+                    saveProjects(); syncStyleUI();
+                });
+            });
+
+            // 7 Detailed Sliders
+            on($('sliderParticleAmount'), 'input', function () {
+                currentProject().style.particleAmount = parseInt($('sliderParticleAmount').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderFxSpeed'), 'input', function () {
+                currentProject().style.fxSpeed = parseFloat($('sliderFxSpeed').value);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderBeatIntensity'), 'input', function () {
+                currentProject().style.beatIntensity = parseInt($('sliderBeatIntensity').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderDimness'), 'input', function () {
+                currentProject().style.dimness = parseInt($('sliderDimness').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderGlow'), 'input', function () {
+                currentProject().style.glowStrength = parseInt($('sliderGlow').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderLetterSpacing'), 'input', function () {
+                currentProject().style.letterSpacing = parseInt($('sliderLetterSpacing').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+            on($('sliderSizeFine'), 'input', function () {
+                currentProject().style.sizeFine = parseInt($('sliderSizeFine').value, 10);
+                saveProjects(); syncStyleUI();
+            });
+
+            on($('btnResetAdvanced'), 'click', function () {
+                var st = currentProject().style;
+                var def = defaultStyle();
+                st.particleAmount = def.particleAmount;
+                st.fxSpeed = def.fxSpeed;
+                st.beatIntensity = def.beatIntensity;
+                st.dimness = def.dimness;
+                st.glowStrength = def.glowStrength;
+                st.letterSpacing = def.letterSpacing;
+                st.sizeFine = def.sizeFine;
+                saveProjects();
+                syncStyleUI();
+                showToast('詳細設定を初期値に戻しました');
+            });
+
+            // -----------------------------------------------------------------
+            // 11. TAB 3 EVENTS (TAP SYNC)
+            // -----------------------------------------------------------------
+            function handleTapNext() {
+                if (state.isExporting) return;
+                var lyrics = currentProject().lyrics;
+                if (!state.hasAudio || lyrics.length === 0) return;
+                if (state.tapIndex >= lyrics.length) {
+                    showToast('最終行まで完了しています');
+                    return;
+                }
+
+                var now = round2(getCurrentTime());
+                var idx = state.tapIndex;
+
+                // Close previous active lyric automatically
+                for (var p = idx - 1; p >= 0; p--) {
+                    if (!isRowBreak(lyrics[p]) && isRowSynced(lyrics[p])) {
+                        if (lyrics[p].end > now) {
+                            lyrics[p].end = round2(Math.max(lyrics[p].start + 0.15, now - 0.04));
+                        }
+                        break;
+                    }
+                }
+
+                var cur = lyrics[idx];
+                if (isRowBreak(cur)) {
+                    state.activeTapIdx = -1;
+                    showToast('間奏（文字消し）を記録しました');
+                } else {
+                    cur.start = now;
+                    cur.end = round2(Math.min(state.duration || (now + 10), now + 10.0));
+                    state.activeTapIdx = idx;
+                }
+
+                state.editIndex = idx;
+                state.tapIndex = Math.min(lyrics.length, idx + 1);
+                saveProjects();
+                syncTapUI();
+                syncEditUI();
+            }
+
+            function handleTapClear() {
+                if (state.isExporting) return;
+                var lyrics = currentProject().lyrics;
+                var now = round2(getCurrentTime());
+                var target = state.activeTapIdx >= 0 ? state.activeTapIdx : (state.tapIndex - 1);
+                if (target >= 0 && lyrics[target] && !isRowBreak(lyrics[target]) && typeof lyrics[target].start === 'number') {
+                    lyrics[target].end = round2(Math.max(lyrics[target].start + 0.15, now));
+                    state.activeTapIdx = -1;
+                    saveProjects();
+                    syncTapUI();
+                    syncEditUI();
+                    showToast('#' + (target + 1) + ' を ' + formatMMSSd(lyrics[target].end) + ' で終了しました');
+                }
+            }
+
+            function handleTapUndo() {
+                if (state.isExporting) return;
+                var lyrics = currentProject().lyrics;
+                state.activeTapIdx = -1;
+                if (state.tapIndex <= 0) {
+                    seekTo(Math.max(0, getCurrentTime() - 2.0));
+                    return;
+                }
+                state.tapIndex--;
+                state.editIndex = state.tapIndex;
+                var row = lyrics[state.tapIndex];
+                var targetSec = (row && typeof row.start === 'number') ? Math.max(0, row.start - 2.0) : Math.max(0, getCurrentTime() - 2.0);
+                seekTo(targetSec);
+                syncTapUI();
+                syncEditUI();
+                if (!state.isPlaying) playAudio();
+                showToast('#' + (state.tapIndex + 1) + ' の2秒前へ戻しました');
+            }
+
+            on($('btnTapNext'), 'click', handleTapNext);
+            on($('btnTapClear'), 'click', handleTapClear);
+            on($('btnTapUndo'), 'click', handleTapUndo);
+
+            on($('tapJumpSelect'), 'change', function () {
+                var idx = parseInt($('tapJumpSelect').value, 10) || 0;
+                state.tapIndex = idx;
+                state.editIndex = idx;
+                state.activeTapIdx = -1;
+                var row = currentProject().lyrics[idx];
+                if (row && typeof row.start === 'number') seekTo(Math.max(0, row.start - 2.0));
+                syncTapUI();
+            });
+
+            on($('btnTapJumpPlay'), 'click', function () {
+                var idx = parseInt($('tapJumpSelect').value, 10) || 0;
+                state.tapIndex = idx;
+                state.editIndex = idx;
+                state.activeTapIdx = -1;
+                var row = currentProject().lyrics[idx];
+                var sec = (row && typeof row.start === 'number') ? Math.max(0, row.start - 2.0) : 0;
+                seekTo(sec);
+                syncTapUI();
+                playAudio();
+            });
+
+            function shiftAllLyrics(delta) {
+                currentProject().lyrics.forEach(function (r) {
+                    if (isRowSynced(r)) {
+                        r.start = Math.max(0, round2(r.start + delta));
+                        r.end = Math.max(r.start + 0.15, round2(r.end + delta));
+                    }
+                });
+                saveProjects();
+                syncTapUI();
+                syncEditUI();
+                showToast('全行を ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + 's シフトしました');
+            }
+
+            on($('btnGlobalM01'), 'click', function () { shiftAllLyrics(-0.1); });
+            on($('btnGlobalP01'), 'click', function () { shiftAllLyrics(0.1); });
+
+            // -----------------------------------------------------------------
+            // 12. TAB 4 EVENTS (MICRO-ADJUSTMENT)
+            // -----------------------------------------------------------------
+            on($('btnEditPrev'), 'click', function () {
+                if (state.editIndex > 0) {
+                    state.editIndex--;
+                    syncEditUI();
+                    var r = currentProject().lyrics[state.editIndex];
+                    if (isRowSynced(r) && state.hasAudio) seekTo(Math.max(0, r.start - (state.rowLoop ? 1.2 : 0.1)));
+                }
+            });
+
+            on($('btnEditNext'), 'click', function () {
+                var lyrics = currentProject().lyrics;
+                if (state.editIndex < lyrics.length - 1) {
+                    state.editIndex++;
+                    syncEditUI();
+                    var r = lyrics[state.editIndex];
+                    if (isRowSynced(r) && state.hasAudio) seekTo(Math.max(0, r.start - (state.rowLoop ? 1.2 : 0.1)));
+                }
+            });
+
+            on($('btnRowLoop'), 'click', function () {
+                state.rowLoop = !state.rowLoop;
+                $('btnRowLoop').textContent = '🔁 この行をループ再生: ' + (state.rowLoop ? 'ON' : 'OFF');
+                $('btnRowLoop').classList.toggle('bg-red-500/20', state.rowLoop);
+                $('btnRowLoop').classList.toggle('border-red-500', state.rowLoop);
+                $('badgeLoop').classList.toggle('hidden', !state.rowLoop);
+                var r = currentProject().lyrics[state.editIndex];
+                if (state.rowLoop && isRowSynced(r) && state.hasAudio) {
+                    seekTo(Math.max(0, r.start - 1.2));
+                    if (!state.isPlaying) playAudio();
+                }
+            });
+
+            on($('editTextInput'), 'input', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                r.text = $('editTextInput').value;
+                r.isBreak = !r.text.trim();
+                saveProjects();
+                syncLyricsUI();
+                syncTapUI();
+                syncEditUI();
+            });
+
+            on($('editStartNum'), 'change', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                var v = parseFloat($('editStartNum').value);
+                if (isNaN(v)) { syncEditUI(); return; }
+                r.start = Math.max(0, round2(v));
+                if (typeof r.end !== 'number' || r.end < r.start + 0.15) r.end = round2(r.start + 3.0);
+                saveProjects(); syncEditUI(); syncTapUI();
+            });
+
+            on($('editEndNum'), 'change', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                var v = parseFloat($('editEndNum').value);
+                if (isNaN(v)) { syncEditUI(); return; }
+                if (typeof r.start !== 'number') r.start = Math.max(0, round2(v - 3.0));
+                r.end = Math.max(round2(r.start + 0.15), round2(v));
+                saveProjects(); syncEditUI(); syncTapUI();
+            });
+
+            document.querySelectorAll('.nudge-btn').forEach(function (btn) {
+                on(btn, 'click', function () {
+                    var r = currentProject().lyrics[state.editIndex];
+                    if (!r) return;
+                    var field = btn.getAttribute('data-field');
+                    var delta = parseFloat(btn.getAttribute('data-delta'));
+                    if (field === 'start') {
+                        var baseS = typeof r.start === 'number' ? r.start : round2(getCurrentTime());
+                        r.start = Math.max(0, round2(baseS + delta));
+                        if (typeof r.end !== 'number' || r.end < r.start + 0.15) r.end = round2(r.start + 3.0);
+                    } else {
+                        var baseE = typeof r.end === 'number' ? r.end : round2((r.start || getCurrentTime()) + 3.0);
+                        if (typeof r.start !== 'number') r.start = Math.max(0, round2(baseE - 3.0));
+                        r.end = Math.max(round2(r.start + 0.15), round2(baseE + delta));
+                    }
+                    saveProjects(); syncEditUI(); syncTapUI();
+                });
+            });
+
+            on($('btnSetStartNow'), 'click', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                r.start = round2(getCurrentTime());
+                if (typeof r.end !== 'number' || r.end < r.start + 0.2) r.end = round2(r.start + 3.0);
+                saveProjects(); syncEditUI(); syncTapUI();
+            });
+
+            on($('btnSetEndNow'), 'click', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                var now = round2(getCurrentTime());
+                if (typeof r.start !== 'number') r.start = Math.max(0, round2(now - 3.0));
+                r.end = Math.max(round2(r.start + 0.15), now);
+                saveProjects(); syncEditUI(); syncTapUI();
+            });
+
+            on($('btnRowUnset'), 'click', function () {
+                var r = currentProject().lyrics[state.editIndex];
+                if (!r) return;
+                r.start = null;
+                r.end = null;
+                saveProjects(); syncEditUI(); syncTapUI();
+                showToast('この行の時間をクリアしました');
+            });
+
+            // -----------------------------------------------------------------
+            // 13. FULL-LENGTH DIRECT MP4 EXPORT (WebCodecs + Dynamic mp4-muxer)
+            // -----------------------------------------------------------------
+            function sleepMs(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+            function openExportModalError(title, msg) {
+                $('exportModalTitle').textContent = title;
+                $('exportReadyBox').classList.add('hidden');
+                $('exportErrorBox').textContent = msg;
+                $('exportErrorBox').classList.remove('hidden');
+                var m = $('modalExport');
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            }
+
+            function openExportModalReady(blob, meta) {
+                if (state.lastExportUrl) {
+                    try { URL.revokeObjectURL(state.lastExportUrl); } catch (e) {}
+                }
+                var url = URL.createObjectURL(blob);
+                var safeName = (currentProject().name || 'natsumoto_mv').replace(/[\\/:*?"<>|]/g, '_');
+                var fileName = safeName + '_' + Date.now() + '.mp4';
+
+                state.lastExportBlob = blob;
+                state.lastExportUrl = url;
+                state.lastExportName = fileName;
+
+                $('exportModalTitle').textContent = 'フル尺MP4書き出し完了！';
+                $('exportErrorBox').classList.add('hidden');
+                $('exportReadyBox').classList.remove('hidden');
+
+                $('diagSize').textContent = formatBytes(blob.size);
+                $('diagAudio').textContent = meta.hasAudio ? '音声あり (AAC)' : '映像のみ';
+                $('diagRes').textContent = meta.width + '×' + meta.height;
+                $('diagDur').textContent = formatMMSSd(meta.duration);
+
+                $('exportFallbackNote').classList.toggle('hidden', meta.hasAudio);
+
+                var vid = $('exportVideoPreview');
+                vid.src = url;
+                vid.load();
+
+                var canShare = false;
+                try {
+                    if (navigator.share && navigator.canShare && typeof File !== 'undefined') {
+                        var tf = new File([blob], fileName, { type: 'video/mp4' });
+                        canShare = navigator.canShare({ files: [tf] });
+                    }
+                } catch (e) { canShare = false; }
+                $('btnShareMp4').classList.toggle('hidden', !canShare);
+
+                var m = $('modalExport');
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+                showToast('MP4書き出しが完了しました！', 'success');
+            }
+
+            on($('btnCloseExport'), 'click', function () {
+                $('exportVideoPreview').pause();
+                var m = $('modalExport');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+            });
+
+            on($('btnDownloadMp4'), 'click', function () {
+                if (!state.lastExportUrl) return;
+                var a = document.createElement('a');
+                a.href = state.lastExportUrl;
+                a.download = state.lastExportName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast('ダウンロードを開始しました', 'success');
+            });
+
+            on($('btnShareMp4'), 'click', function () {
+                if (!state.lastExportBlob || !navigator.share) return;
+                try {
+                    var file = new File([state.lastExportBlob], state.lastExportName, { type: 'video/mp4' });
+                    navigator.share({ files: [file], title: currentProject().name || 'Natsumoto MV' }).catch(function () {});
+                } catch (e) {
+                    showToast('共有メニューを開けませんでした', 'error');
+                }
+            });
+
+            on($('btnCancelExport'), 'click', function () {
+                state.cancelExport = true;
+                $('expStatusLabel').textContent = 'キャンセル処理中...';
+            });
+
+            async function startFullMp4Export() {
+                if (state.isExporting) return;
+
+                if (!state.hasAudio || !state.duration || state.duration <= 0) {
+                    showToast('書き出すには先に「① 素材・歌詞」で音源を読み込んでください', 'error');
+                    window.__nmvSwitchTab('assets');
+                    return;
+                }
+
+                // Warn if unset lyrics remain
+                var unsetCount = currentProject().lyrics.filter(function (r) {
+                    return !isRowBreak(r) && !isRowSynced(r);
+                }).length;
+
+                if (unsetCount > 0) {
+                    var proceed = await openDialog({
+                        title: '未設定の歌詞があります',
+                        message: 'タイミングが「未設定」の歌詞が ' + unsetCount + ' 行あります。未設定の行は画面に表示されませんが、このままフル尺MP4を書き出しますか？',
+                        okText: 'このまま書き出す'
+                    });
+                    if (!proceed) return;
+                }
+
+                if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
+                    openExportModalError(
+                        'このブラウザは直接MP4書き出しに非対応です',
+                        'WebCodecs (VideoEncoder) が利用できません。最新のSafari（iOS 16.4以上）またはPC版Chrome/Edgeでお試しください。'
+                    );
+                    return;
+                }
+
+                if (state.isPlaying) pauseAudio();
+
+                state.isExporting = true;
+                state.cancelExport = false;
+                $('btnExportMp4').disabled = true;
+                $('exportProgressWrap').classList.remove('hidden');
+                $('exportProgressWrap').classList.add('flex');
+                $('expStatusLabel').textContent = 'MP4ライブラリを読み込み中...';
+                $('expPct').textContent = '0%';
+                $('expBarFill').style.width = '0%';
+
+                var startPerf = performance.now();
+
+                try {
+                    // Dynamic ESM import ONLY on export click
+                    var Mp4MuxerMod = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/build/mp4-muxer.mjs');
+                    var Muxer = Mp4MuxerMod.Muxer;
+                    var ArrayBufferTarget = Mp4MuxerMod.ArrayBufferTarget;
+
+                    var width = mvCanvas.width - (mvCanvas.width % 2);
+                    var height = mvCanvas.height - (mvCanvas.height % 2);
+                    if (mvCanvas.width !== width || mvCanvas.height !== height) {
+                        mvCanvas.width = width;
+                        mvCanvas.height = height;
+                    }
+
+                    var fps = 30;
+                    var renderDur = Math.max(1.0, state.duration);
+                    var totalFrames = Math.max(1, Math.ceil(renderDur * fps));
+
+                    // Probe H.264 codec
+                    var codecs = ['avc1.42001f', 'avc1.420028', 'avc1.4d002a', 'avc1.640028'];
+                    var chosenCodec = null;
+                    for (var c = 0; c < codecs.length; c++) {
+                        try {
+                            var sup = await VideoEncoder.isConfigSupported({
+                                codec: codecs[c],
+                                width: width,
+                                height: height,
+                                bitrate: 4500000,
+                                framerate: fps
+                            });
+                            if (sup && sup.supported) { chosenCodec = codecs[c]; break; }
+                        } catch (e) {}
+                    }
+                    if (!chosenCodec) throw new Error('対応するH.264エンコーダが見つかりませんでした。');
+
+                    // Probe AAC AudioEncoder (auto-fallback on iOS)
+                    var useAudio = false;
+                    var audioSr = 48000;
+                    var audioCh = 2;
+                    if (state.decodedAudioBuffer && typeof AudioEncoder !== 'undefined' && typeof AudioData !== 'undefined') {
+                        audioSr = state.decodedAudioBuffer.sampleRate;
+                        audioCh = Math.min(2, state.decodedAudioBuffer.numberOfChannels);
+                        try {
+                            var aSup = await AudioEncoder.isConfigSupported({
+                                codec: 'mp4a.40.2',
+                                sampleRate: audioSr,
+                                numberOfChannels: audioCh,
+                                bitrate: 128000
+                            });
+                            if (aSup && aSup.supported) useAudio = true;
+                        } catch (e) { useAudio = false; }
+                    }
+
+                    function updateProgress(label, done) {
+                        var pct = Math.min(100, Math.round((done / totalFrames) * 100));
+                        var elapsed = (performance.now() - startPerf) / 1000;
+                        var eta = '--:--';
+                        if (done >= 15 && elapsed > 0.3 && done < totalFrames) {
+                            eta = formatMMSS((totalFrames - done) / Math.max(0.1, done / elapsed));
+                        } else if (done >= totalFrames) {
+                            eta = '00:00';
+                        }
+                        $('expStatusLabel').textContent = label;
+                        $('expPct').textContent = pct + '%';
+                        $('expFrames').textContent = done + ' / ' + totalFrames;
+                        $('expElapsed').textContent = '経過 ' + formatMMSS(elapsed);
+                        $('expEta').textContent = '残り ' + eta;
+                        $('expBarFill').style.width = pct + '%';
+                    }
+
+                    async function encodeRun(includeAudio) {
+                        var muxOpts = {
+                            target: new ArrayBufferTarget(),
+                            video: { codec: 'avc', width: width, height: height },
+                            fastStart: 'in-memory',
+                            firstTimestampBehavior: 'offset'
+                        };
+                        if (includeAudio) {
+                            muxOpts.audio = { codec: 'aac', numberOfChannels: audioCh, sampleRate: audioSr };
+                        }
+                        var muxer = new Muxer(muxOpts);
+                        var encErr = null;
+
+                        var vEnc = new VideoEncoder({
+                            output: function (chunk, meta) { muxer.addVideoChunk(chunk, meta); },
+                            error: function (err) { encErr = err; }
+                        });
+                        vEnc.configure({
+                            codec: chosenCodec,
+                            width: width,
+                            height: height,
+                            bitrate: 4500000,
+                            framerate: fps,
+                            avc: { format: 'avc' }
+                        });
+
+                        if (includeAudio && state.decodedAudioBuffer) {
+                            updateProgress('音声(AAC)エンコード中...', 0);
+                            var aEnc = new AudioEncoder({
+                                output: function (chunk, meta) { muxer.addAudioChunk(chunk, meta); },
+                                error: function (err) { encErr = err; }
+                            });
+                            aEnc.configure({
+                                codec: 'mp4a.40.2',
+                                sampleRate: audioSr,
+                                numberOfChannels: audioCh,
+                                bitrate: 128000
+                            });
+
+                            var buf = state.decodedAudioBuffer;
+                            var totalSamples = Math.min(Math.floor(renderDur * audioSr), buf.length);
+                            var chunkSize = 4096;
+                            for (var off = 0; off < totalSamples; off += chunkSize) {
+                                if (state.cancelExport) break;
+                                if (encErr) throw encErr;
+                                while (aEnc.encodeQueueSize > 12 && !state.cancelExport) await sleepMs(10);
+                                var count = Math.min(chunkSize, totalSamples - off);
+                                var planar = new Float32Array(count * audioCh);
+                                for (var ch = 0; ch < audioCh; ch++) {
+                                    var src = buf.getChannelData(Math.min(ch, buf.numberOfChannels - 1));
+                                    planar.set(src.subarray(off, off + count), ch * count);
+                                }
+                                var ad = new AudioData({
+                                    format: 'f32-planar',
+                                    sampleRate: audioSr,
+                                    numberOfFrames: count,
+                                    numberOfChannels: audioCh,
+                                    timestamp: Math.round((off / audioSr) * 1000000),
+                                    data: planar
+                                });
+                                aEnc.encode(ad);
+                                ad.close();
+                            }
+                            if (!state.cancelExport) await aEnc.flush();
+                            aEnc.close();
+                        }
+
+                        // Deterministic 30fps Video Frame Loop with Backpressure
+                        initParticles();
+                        var frameDurUs = Math.round(1000000 / fps);
+                        var dt = 1 / fps;
+                        var offMetrics = { rms: 0, bass: 0, prevBass: 0, beat: 0 };
+
+                        for (var f = 0; f < totalFrames; f++) {
+                            if (state.cancelExport) break;
+                            if (encErr) throw encErr;
+
+                            while (vEnc.encodeQueueSize > 8 && !state.cancelExport) {
+                                await sleepMs(15);
+                            }
+                            if (state.cancelExport) break;
+
+                            var t = f * dt;
+                            updateMetrics(offMetrics, t, dt, true);
+                            renderFrame(t, dt, findActiveLyric(t), offMetrics, true);
+
+                            var vf = new VideoFrame(mvCanvas, {
+                                timestamp: f * frameDurUs,
+                                duration: frameDurUs
+                            });
+                            try {
+                                vEnc.encode(vf, { keyFrame: f % 60 === 0 });
+                            } finally {
+                                vf.close();
+                            }
+
+                            if (f % 12 === 0 || f === totalFrames - 1) {
+                                updateProgress('フル尺MP4書き出し中...', f + 1);
+                                await sleepMs(0);
+                            }
+                        }
+
+                        if (state.cancelExport) {
+                            try { vEnc.close(); } catch (e) {}
+                            return null;
+                        }
+
+                        updateProgress('MP4仕上げ中...', totalFrames);
+                        await vEnc.flush();
+                        vEnc.close();
+                        if (encErr) throw encErr;
+
+                        muxer.finalize();
+                        return new Blob([muxer.target.buffer], { type: 'video/mp4' });
+                    }
+
+                    var finalBlob = null;
+                    var finalHasAudio = useAudio;
+                    try {
+                        finalBlob = await encodeRun(useAudio);
+                    } catch (firstErr) {
+                        if (useAudio && !state.cancelExport) {
+                            finalHasAudio = false;
+                            finalBlob = await encodeRun(false);
+                        } else {
+                            throw firstErr;
+                        }
+                    }
+
+                    if (state.cancelExport) {
+                        showToast('書き出しをキャンセルしました');
+                    } else if (finalBlob) {
+                        openExportModalReady(finalBlob, {
+                            hasAudio: finalHasAudio,
+                            width: width,
+                            height: height,
+                            duration: renderDur
+                        });
+                    }
+                } catch (err) {
+                    console.error('Export error:', err);
+                    openExportModalError(
+                        'MP4書き出し中にエラーが発生しました',
+                        '詳細: ' + String(err && err.message ? err.message : err)
+                    );
+                } finally {
+                    state.isExporting = false;
+                    state.cancelExport = false;
+                    $('btnExportMp4').disabled = false;
+                    $('exportProgressWrap').classList.add('hidden');
+                    $('exportProgressWrap').classList.remove('flex');
+                }
+            }
+
+            on($('btnExportMp4'), 'click', startFullMp4Export);
+
+            // -----------------------------------------------------------------
+            // 14. MAIN ANIMATION LOOP & BOOT
+            // -----------------------------------------------------------------
+            function renderLoop(now) {
+                if (!state.isExporting) {
+                    try {
+                        var dt = Math.min(0.05, Math.max(0.001, (now - state.lastFrameMs) / 1000));
+                        state.lastFrameMs = now;
+                        var t = getCurrentTime();
+
+                        // Single-line loop in Tab 4
+                        if (state.isPlaying && state.rowLoop && currentProject().lyrics[state.editIndex]) {
+                            var r = currentProject().lyrics[state.editIndex];
+                            if (isRowSynced(r)) {
+                                var ls = Math.max(0, r.start - 1.2);
+                                var le = r.end + 0.5;
+                                if (t > le || t < ls - 0.5) {
+                                    seekTo(ls);
+                                    t = ls;
+                                }
+                            }
+                        }
+
+                        updateMetrics(liveMetrics, t, dt, state.isPlaying);
+                        renderFrame(t, dt, findActiveLyric(t), liveMetrics, false);
+                        drawWaveform(t);
+                        $('timeDisplay').textContent = formatMMSSd(t) + ' / ' + formatMMSSd(state.duration);
+                    } catch (err) {
+                        console.error('Render loop error:', err);
+                    }
+                } else {
+                    state.lastFrameMs = now;
+                }
+                requestAnimationFrame(renderLoop);
+            }
+
+            on(window, 'resize', resizeWaveform);
+
+            // Keyboard shortcuts on desktop (when not typing in inputs)
+            on(document, 'keydown', function (e) {
+                var tag = document.activeElement && document.activeElement.tagName;
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+                if (state.isExporting) return;
+                if (window.__nmvActiveTab === 'tap') {
+                    if (e.code === 'Space') { e.preventDefault(); handleTapNext(); }
+                    else if (e.key === 'x' || e.key === 'X') { e.preventDefault(); handleTapClear(); }
+                    else if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); handleTapUndo(); }
+                }
+            });
+
+            // Boot
+            loadProjects();
+            syncAllUI();
+            resizeWaveform();
+            requestAnimationFrame(renderLoop);
+        })();
+    </script>
+</body>
+</html>
