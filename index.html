@@ -22,6 +22,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Inter:wght@500;600;700;800&family=Kaisei+Decol:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;700;800&family=Noto+Sans+JP:wght@500;700;900&family=RocknRoll+One&family=Shippori+Mincho:wght@500;700;800&family=Yuji+Syuku&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
 
     <style>
+        /* Permanently locked to default purple for App UI legibility */
         :root {
             --accent: #a855f7;
             --accent-soft: rgba(168, 85, 247, 0.18);
@@ -358,7 +359,7 @@
 
                         <!-- Accent Color (MV Effects Only) -->
                         <div class="bg-[#141722] border border-[#272c40] rounded-xl p-3 flex flex-col gap-2">
-                            <span class="text-xs font-extrabold text-white">アクセントカラー（演出用）</span>
+                            <span class="text-xs font-extrabold text-white">アクセントカラー</span>
                             <div class="flex flex-wrap items-center gap-2">
                                 <button type="button" class="swatch-btn active w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#a855f7" style="background:#a855f7;" aria-label="パープル"></button>
                                 <button type="button" class="swatch-btn w-7 h-7 rounded-full border-2 border-transparent transition" data-color="#ec4899" style="background:#ec4899;" aria-label="ピンク"></button>
@@ -994,6 +995,7 @@
                 activeTapIdx: -1,
                 editIndex: 0,
                 rowLoop: false,
+                animPreviewStartMs: 0,
                 lastFrameMs: performance.now(),
                 isExporting: false,
                 cancelExport: false,
@@ -1074,9 +1076,13 @@
             // -----------------------------------------------------------------
             // 4. STORAGE PERSISTENCE (localStorage + IndexedDB for Media Files)
             // -----------------------------------------------------------------
-            var MEDIA_DB_NAME = 'natsumoto_mv_media_v1';
+            var MEDIA_DB_NAME = 'natsumoto_mv_media_db';
             var MEDIA_STORE_NAME = 'media';
             var mediaDbPromise = null;
+
+            function mediaKey(projectId, type) {
+                return projectId + ':' + type;
+            }
 
             function openMediaDB() {
                 if (mediaDbPromise) return mediaDbPromise;
@@ -1099,13 +1105,18 @@
                 return mediaDbPromise;
             }
 
-            function idbPutMedia(key, record) {
+            function idbPutMedia(projectId, type, file) {
                 return openMediaDB().then(function (db) {
                     if (!db) return false;
                     return new Promise(function (resolve) {
                         try {
                             var tx = db.transaction(MEDIA_STORE_NAME, 'readwrite');
-                            tx.objectStore(MEDIA_STORE_NAME).put(record, key);
+                            tx.objectStore(MEDIA_STORE_NAME).put({
+                                blob: file,
+                                name: file.name || '',
+                                type: file.type || '',
+                                updatedAt: Date.now()
+                            }, mediaKey(projectId, type));
                             tx.oncomplete = function () { resolve(true); };
                             tx.onerror = function () { resolve(false); };
                             tx.onabort = function () { resolve(false); };
@@ -1116,13 +1127,13 @@
                 }).catch(function () { return false; });
             }
 
-            function idbGetMedia(key) {
+            function idbGetMedia(projectId, type) {
                 return openMediaDB().then(function (db) {
                     if (!db) return null;
                     return new Promise(function (resolve) {
                         try {
                             var tx = db.transaction(MEDIA_STORE_NAME, 'readonly');
-                            var req = tx.objectStore(MEDIA_STORE_NAME).get(key);
+                            var req = tx.objectStore(MEDIA_STORE_NAME).get(mediaKey(projectId, type));
                             req.onsuccess = function () { resolve(req.result || null); };
                             req.onerror = function () { resolve(null); };
                         } catch (e) {
@@ -1132,13 +1143,13 @@
                 }).catch(function () { return null; });
             }
 
-            function idbDeleteMedia(key) {
+            function idbDeleteMedia(projectId, type) {
                 return openMediaDB().then(function (db) {
                     if (!db) return false;
                     return new Promise(function (resolve) {
                         try {
                             var tx = db.transaction(MEDIA_STORE_NAME, 'readwrite');
-                            tx.objectStore(MEDIA_STORE_NAME).delete(key);
+                            tx.objectStore(MEDIA_STORE_NAME).delete(mediaKey(projectId, type));
                             tx.oncomplete = function () { resolve(true); };
                             tx.onerror = function () { resolve(false); };
                             tx.onabort = function () { resolve(false); };
@@ -1255,10 +1266,11 @@
                 state.waveformPeaks = peaks;
             }
 
-            function decodeAudioInTempContext(file) {
+            function decodeAudioInTempContext(file, expectedSeq) {
                 try {
                     var reader = new FileReader();
                     reader.onload = function (ev) {
+                        if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) return;
                         if (!ev.target || !ev.target.result) return;
                         var AC = window.AudioContext || window.webkitAudioContext;
                         if (!AC) return;
@@ -1268,6 +1280,7 @@
                             ev.target.result.slice(0),
                             function (buffer) {
                                 try {
+                                    if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) return;
                                     state.decodedAudioBuffer = buffer;
                                     if (buffer.duration && isFinite(buffer.duration)) {
                                         state.duration = buffer.duration;
@@ -1280,9 +1293,11 @@
                                 }
                             },
                             function () {
-                                state.decodedAudioBuffer = null;
-                                state.envelopeRms = null;
-                                state.envelopeBass = null;
+                                if (expectedSeq === undefined || expectedSeq === mediaLoadSeq) {
+                                    state.decodedAudioBuffer = null;
+                                    state.envelopeRms = null;
+                                    state.envelopeBass = null;
+                                }
                                 try { tmpCtx.close(); } catch (e) {}
                             }
                         );
@@ -1291,7 +1306,7 @@
                 } catch (e) {}
             }
 
-            function resetImageUI() {
+            function clearInMemoryImage() {
                 if (state.bgImageUrl) {
                     try { URL.revokeObjectURL(state.bgImageUrl); } catch (err) {}
                 }
@@ -1306,7 +1321,7 @@
                 $('btnClearImage').classList.add('hidden');
             }
 
-            function resetAudioUI() {
+            function clearInMemoryAudio() {
                 if (state.isPlaying) pauseAudio();
                 if (state.audioUrl) {
                     try { URL.revokeObjectURL(state.audioUrl); } catch (err) {}
@@ -1332,13 +1347,17 @@
                 syncTapUI();
             }
 
-            function applyImageBlob(blob, fileName, silent) {
-                if (state.bgImageUrl) {
-                    try { URL.revokeObjectURL(state.bgImageUrl); } catch (err) {}
-                }
+            function loadImageBlob(blob, fileName, silent, expectedSeq) {
                 var url = URL.createObjectURL(blob);
                 var img = new Image();
                 img.onload = function () {
+                    if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) {
+                        try { URL.revokeObjectURL(url); } catch (err) {}
+                        return;
+                    }
+                    if (state.bgImageUrl) {
+                        try { URL.revokeObjectURL(state.bgImageUrl); } catch (err) {}
+                    }
                     state.bgImage = img;
                     state.bgImageUrl = url;
                     $('imageFileName').textContent = fileName || '保存済み画像';
@@ -1351,17 +1370,21 @@
                 };
                 img.onerror = function () {
                     try { URL.revokeObjectURL(url); } catch (err) {}
-                    $('imageInput').value = '';
-                    if (!silent) showToast('画像ファイルとして読み込めませんでした', 'error');
+                    if (expectedSeq === undefined || expectedSeq === mediaLoadSeq) {
+                        $('imageInput').value = '';
+                        if (!silent) showToast('画像ファイルとして読み込めませんでした', 'error');
+                    }
                 };
                 img.src = url;
             }
 
-            function applyAudioBlob(blob, fileName, silent) {
+            function loadAudioBlob(blob, fileName, silent, expectedSeq) {
+                if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) return;
                 if (state.isPlaying) pauseAudio();
                 if (state.audioUrl) {
                     try { URL.revokeObjectURL(state.audioUrl); } catch (err) {}
                 }
+
                 var url = URL.createObjectURL(blob);
                 state.audioUrl = url;
                 state.decodedAudioBuffer = null;
@@ -1381,9 +1404,10 @@
                 $('audioFileStatus').textContent = '読み込み・波形解析中...';
                 $('btnClearAudio').classList.remove('hidden');
 
-                decodeAudioInTempContext(blob);
+                decodeAudioInTempContext(blob, expectedSeq);
 
                 audioEl.onloadedmetadata = function () {
+                    if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) return;
                     if (audioEl.duration && isFinite(audioEl.duration)) {
                         state.duration = audioEl.duration;
                         if (!state.decodedAudioBuffer) {
@@ -1395,28 +1419,30 @@
                 };
                 audioEl.onended = function () { pauseAudio(); };
                 audioEl.onerror = function () {
-                    resetAudioUI();
+                    if (expectedSeq !== undefined && expectedSeq !== mediaLoadSeq) return;
+                    clearInMemoryAudio();
                     if (!silent) showToast('音声ファイルを読み込めませんでした', 'error');
                 };
                 syncTapUI();
             }
 
-            function loadProjectMedia(projectId) {
+            function restoreProjectMedia(projectId) {
                 var mySeq = ++mediaLoadSeq;
-                resetImageUI();
-                resetAudioUI();
+                clearInMemoryImage();
+                clearInMemoryAudio();
+
                 Promise.all([
-                    idbGetMedia(projectId + '_image'),
-                    idbGetMedia(projectId + '_audio')
+                    idbGetMedia(projectId, 'image'),
+                    idbGetMedia(projectId, 'audio')
                 ]).then(function (results) {
                     if (mySeq !== mediaLoadSeq) return;
                     var imgRec = results[0];
                     var audRec = results[1];
                     if (imgRec && imgRec.blob) {
-                        applyImageBlob(imgRec.blob, imgRec.name, true);
+                        loadImageBlob(imgRec.blob, imgRec.name, true, mySeq);
                     }
                     if (audRec && audRec.blob) {
-                        applyAudioBlob(audRec.blob, audRec.name, true);
+                        loadAudioBlob(audRec.blob, audRec.name, true, mySeq);
                     }
                 }).catch(function () {});
             }
@@ -1425,17 +1451,14 @@
             on($('imageInput'), 'change', function (e) {
                 var file = e.target.files && e.target.files[0];
                 if (!file) return;
-                applyImageBlob(file, file.name, false);
-                idbPutMedia(currentProject().id + '_image', {
-                    blob: file,
-                    name: file.name,
-                    type: file.type || ''
-                });
+                var mySeq = mediaLoadSeq;
+                loadImageBlob(file, file.name, false, mySeq);
+                idbPutMedia(currentProject().id, 'image', file);
             });
 
             on($('btnClearImage'), 'click', function () {
-                resetImageUI();
-                idbDeleteMedia(currentProject().id + '_image');
+                clearInMemoryImage();
+                idbDeleteMedia(currentProject().id, 'image');
             });
 
             // Audio Upload (NO accept attribute on input!)
@@ -1450,17 +1473,14 @@
                     return;
                 }
 
-                applyAudioBlob(file, file.name, false);
-                idbPutMedia(currentProject().id + '_audio', {
-                    blob: file,
-                    name: file.name,
-                    type: file.type || ''
-                });
+                var mySeq = mediaLoadSeq;
+                loadAudioBlob(file, file.name, false, mySeq);
+                idbPutMedia(currentProject().id, 'audio', file);
             });
 
             on($('btnClearAudio'), 'click', function () {
-                resetAudioUI();
-                idbDeleteMedia(currentProject().id + '_audio');
+                clearInMemoryAudio();
+                idbDeleteMedia(currentProject().id, 'audio');
             });
 
             // -----------------------------------------------------------------
@@ -1532,7 +1552,7 @@
                     var r = proj.lyrics[state.editIndex];
                     var x1 = (r.start / dur) * w;
                     var x2 = (r.end / dur) * w;
-                    wfCtx.fillStyle = state.rowLoop ? 'rgba(239,68,68,0.28)' : hexToRgba(UI_PURPLE, 0.24);
+                    wfCtx.fillStyle = state.rowLoop ? 'rgba(239,68,68,0.28)' : 'rgba(168, 85, 247, 0.24)';
                     wfCtx.fillRect(x1, 0, Math.max(3, x2 - x1), h);
                 }
 
@@ -2065,7 +2085,7 @@
                 // 4. Lyric Text (Live Preview in Tab 2 when paused or no active lyric)
                 var textToDraw = '';
                 var orderNum = 1;
-                var elapsed = 1.0;
+                var elapsed = 2.0;
                 var remaining = 5.0;
 
                 if (activeIdx >= 0 && proj.lyrics[activeIdx] && !isRowBreak(proj.lyrics[activeIdx])) {
@@ -2081,6 +2101,15 @@
                     }
                     textToDraw = first || '歌詞プレビュー表示中 / Sample Lyric';
                     orderNum = 1;
+                    if (state.animPreviewStartMs > 0) {
+                        var animSec = (performance.now() - state.animPreviewStartMs) / 1000;
+                        if (animSec < 2.2) {
+                            elapsed = Math.max(0.001, animSec);
+                        } else {
+                            state.animPreviewStartMs = 0;
+                            elapsed = 2.0;
+                        }
+                    }
                 }
 
                 if (textToDraw) {
@@ -2169,7 +2198,7 @@
 
             function syncStyleUI() {
                 var st = currentProject().style;
-                // App UI (--accent / --accent-soft) stays fixed purple (#a855f7); st.accentColor is MV canvas only
+                // App UI remains locked to default purple (#a855f7); st.accentColor affects MV visuals only.
                 applyAspect(st.aspect);
 
                 document.querySelectorAll('[data-aspect]').forEach(function (b) {
@@ -2429,7 +2458,7 @@
                 state.editIndex = 0;
                 saveProjects();
                 syncAllUI();
-                loadProjectMedia(id);
+                restoreProjectMedia(id);
                 showToast('プロジェクトを切り替えました');
             }
 
@@ -2461,12 +2490,12 @@
                 var p = currentProject();
                 var ok = await openDialog({
                     title: 'プロジェクト削除',
-                    message: '「' + p.name + '」を削除しますか？保存された画像・音源も一緒に削除されます。',
+                    message: '「' + p.name + '」を削除しますか？この操作は取り消せません。',
                     okText: '削除する'
                 });
                 if (!ok) return;
-                idbDeleteMedia(p.id + '_image');
-                idbDeleteMedia(p.id + '_audio');
+                idbDeleteMedia(p.id, 'image');
+                idbDeleteMedia(p.id, 'audio');
                 state.projects = state.projects.filter(function (x) { return x.id !== p.id; });
                 if (state.projects.length === 0) state.projects.push(createBlankProject('マイMV 1'));
                 switchProject(state.projects[0].id);
@@ -2546,6 +2575,7 @@
             document.querySelectorAll('[data-anim]').forEach(function (btn) {
                 on(btn, 'click', function () {
                     currentProject().style.textAnim = btn.getAttribute('data-anim');
+                    state.animPreviewStartMs = performance.now();
                     saveProjects(); syncStyleUI();
                 });
             });
@@ -3261,7 +3291,7 @@
             loadProjects();
             syncAllUI();
             resizeWaveform();
-            loadProjectMedia(currentProject().id);
+            restoreProjectMedia(currentProject().id);
             requestAnimationFrame(renderLoop);
         })();
     </script>
